@@ -1,0 +1,6 @@
+{application, enif_protobuf, [
+    {description, "A Google Protobuf implementation with enif (Erlang nif)."},
+    {vsn, "git"},
+    {registered, []},
+    {applications, [kernel, stdlib]}
+]}.

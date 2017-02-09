@@ -1,0 +1,15 @@
+.idea/*
+.rebar/*
+deps/*
+ebin/*
+log/*
+*.d
+*.o
+*.so
+*.iml
+.project
+.cproject
+otp_src_18.3
+.settings
+.eunit
+benchmarks/tmp
