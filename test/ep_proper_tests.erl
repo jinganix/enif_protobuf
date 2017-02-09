@@ -3,7 +3,8 @@
 
 -module(ep_proper_tests).
 
--include("quickcheck_setup.hrl").
+-ifdef(PROPER).
+-include_lib("proper/include/proper.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
@@ -281,3 +282,4 @@ prop_encode_msg_with_enum_aliases() ->
         begin
             encode(Message) =:= gpb:encode_msg(Message, Defs)
         end).
+-endif.
