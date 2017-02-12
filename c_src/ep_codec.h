@@ -9,6 +9,13 @@
 
 #define MAX_UINT64_ENCODED_SIZE     10
 
+enum {
+    spot_default,
+    spot_tuple,
+    spot_map,
+    spot_list
+};
+
 typedef enum {
     WIRE_TYPE_VARINT = 0,
     WIRE_TYPE_64BIT = 1,
@@ -82,5 +89,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata);
 /*
  * decode
  */
+ERL_NIF_TERM
+decode(ErlNifEnv *env, tdata_t *tdata, node_t *node);
 
 #endif

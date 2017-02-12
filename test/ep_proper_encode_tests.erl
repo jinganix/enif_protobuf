@@ -1,7 +1,7 @@
 
 %% Copyright (c) jg_513@163.com, https://github.com/jg513
 
--module(ep_proper_tests).
+-module(ep_proper_encode_tests).
 
 -ifdef(PROPER).
 -include_lib("proper/include/proper.hrl").
@@ -10,7 +10,7 @@
 
 -compile(export_all).
 
--import(enif_protobuf, [load_cache/1, encode_msg/2, encode/1]).
+-import(enif_protobuf, [set_opts/1, load_cache/1, encode_msg/2, encode/1]).
 -import(gpb, [decode_msg/3]).
 
 -record(m1, {a}).
@@ -191,6 +191,7 @@ prop_encode_map() ->
         ]}
     ],
     ok = load_cache(Defs),
+    ok = set_opts([{with_utf8, true}]),
     ?FORALL(Message,
         #m3{
             a = {string(), integer()},

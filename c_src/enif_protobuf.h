@@ -26,6 +26,7 @@
 
 #define ENC_INIT_SIZE       1024 * 1024
 #define STACK_INIT_SIZE     32
+#define ARRAY_INIT_SIZE     32
 
 #ifdef _MSC_VER
 # define inline __inline
@@ -64,10 +65,9 @@
     }                                           \
 } while(0)
 
-typedef struct field_type_s field_type_t;
-typedef struct opts_s opts_t;
 typedef struct enum_field_s enum_field_t;
 typedef struct field_s field_t;
+typedef struct fnum_field_s fnum_field_t;
 typedef struct node_id_s node_id_t;
 typedef struct node_name_s node_name_t;
 typedef struct msg_s msg_t;
@@ -77,6 +77,7 @@ typedef struct node_s node_t;
 typedef struct state_s state_t;
 typedef struct cache_s cache_t;
 typedef struct enc_s enc_t;
+typedef struct dec_s dec_t;
 typedef struct spot_s spot_t;
 typedef struct stack_s stack_t;
 
@@ -123,7 +124,7 @@ struct stack_s {
     spot_t         *tmp;
     spot_t         *spot;
     spot_t         *end;
-    spot_t         *mem;
+    spot_t         *spots;
     size_t          size;
 };
 
@@ -138,6 +139,15 @@ struct enc_s {
     uint32_t        omit;
 };
 
+struct dec_s {
+    char           *p;
+    char           *sentinel;
+    char           *end;
+    ErlNifBinary    bin;
+    ERL_NIF_TERM    term;
+    ERL_NIF_TERM    result;
+};
+
 struct spot_s {
     int32_t         type;
 
@@ -150,11 +160,17 @@ struct spot_s {
 
     ERL_NIF_TERM   *array;  // is_tuple
     ERL_NIF_TERM    list;   // is_list
+
+    ERL_NIF_TERM   *t_arr;
+    size_t          t_size;
+    size_t          t_used;
+    ERL_NIF_TERM    result;
 };
 
 typedef struct tdata_s {
     stack_t         stack;
     enc_t           enc;
+    dec_t           dec;
 } tdata_t;
 
 typedef struct lock_s {
@@ -166,13 +182,20 @@ struct state_s {
     cache_t        *cache;
     cache_t        *old_cache;
 
-    int32_t         lock_n;
-    int32_t         lock_used;
+    uint32_t        lock_n;
+    uint32_t        lock_used;
     lock_t         *lock_end;
     lock_t         *locks;
     tdata_t        *tdata;
 
-    ERL_NIF_TERM    int_zero;
+    struct opts_s {
+        uint32_t    with_utf8;
+    } opts;
+
+    ERL_NIF_TERM    integer_zero;
+    ERL_NIF_TERM    double_zero;
+    ERL_NIF_TERM    binary_nil;
+    ERL_NIF_TERM    nil;
 
     ERL_NIF_TERM    atom_ok;
     ERL_NIF_TERM    atom_error;
@@ -180,11 +203,7 @@ struct state_s {
 	ERL_NIF_TERM    atom_false;
     ERL_NIF_TERM    atom_undefined;
 	ERL_NIF_TERM    atom_field;
-    ERL_NIF_TERM    atom_gpb_oneof;
-    ERL_NIF_TERM    atom_packed;
-    ERL_NIF_TERM    atom_default;
     ERL_NIF_TERM    atom_option;
-    ERL_NIF_TERM    atom_allow_alias;
     ERL_NIF_TERM    atom_infinity;
     ERL_NIF_TERM    atom_min_infinity;
     ERL_NIF_TERM    atom_nan;

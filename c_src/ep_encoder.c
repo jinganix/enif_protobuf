@@ -4,13 +4,6 @@
 
 #include "enif_protobuf.h"
 
-enum {
-    spot_default,
-    spot_tuple,
-    spot_map,
-    spot_list
-};
-
 #if 0
 #define enc_ensure(env, enc, size) do { \
         printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__); \
@@ -42,26 +35,6 @@ enc_ensure(ErlNifEnv *env, enc_t *enc, size_t size)
     }
 
     return enc;
-}
-
-static ERL_NIF_TERM
-stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot)
-{
-    if ((*spot) >= stack->end) {
-
-        stack->tmp = _realloc(stack->mem, sizeof(spot_t) * (sizeof(spot_t) * stack->size * 2));
-        if (stack->tmp == NULL) {
-            return_exception(env, make_atom(env, "realloc_failed"));
-        }
-
-        *spot = stack->tmp + (*spot - stack->mem);
-
-        stack->mem = stack->tmp;
-        stack->size *= 2;
-        stack->end = stack->mem + stack->size;
-    }
-
-    return RET_OK;
 }
 
 static inline void
@@ -126,10 +99,10 @@ pack_sint32(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
     enc_ensure_default(env, enc);
 
     if (val < 0) {
-        val = (-(uint32_t) val) * 2 - 1;
+        val = (-val) * 2 - 1;
 
     } else {
-        val = (uint32_t) (val) * 2;
+        val = val * 2;
     }
 
     do_pack_uint32(env, val, enc);
@@ -198,7 +171,8 @@ do_pack_uint64(ErlNifEnv *env, uint64_t val, enc_t *enc)
     uint32_t lo = (uint32_t) val;
 
     if (hi == 0) {
-        return do_pack_uint32(env, (uint32_t) lo, enc);
+        do_pack_uint32(env, (uint32_t) lo, enc);
+        return;
     }
 
     *(enc->p)++ = (lo) | 0x80;
@@ -227,12 +201,12 @@ pack_uint64(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 {
     uint64_t    val;
 
-    if (enc->omit && val == 0) {
-        return RET_OK;
-    }
-
     if (!enif_get_uint64(env, term, &val)) {
         return_error(env, term);
+    }
+
+    if (enc->omit && val == 0) {
+        return RET_OK;
     }
 
     enc_ensure_default(env, enc);
@@ -258,10 +232,10 @@ pack_sint64(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
     enc_ensure_default(env, enc);
 
     if (val < 0) {
-        val = (-(uint64_t) val) * 2 - 1;
+        val = (-val) * 2 - 1;
 
     } else {
-        val = (uint64_t) (val) * 2;
+        val = val * 2;
     }
 
     do_pack_uint64(env, val, enc);
@@ -449,67 +423,6 @@ pack_utf8(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 }
 
 static inline ERL_NIF_TERM
-pack_string(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
-{
-    size_t          payload_len;
-    uint32_t        len;
-    ErlNifBinary    bin;
-    ERL_NIF_TERM    head, tail, ret;
-
-    if (enif_get_list_length(env, term, &len)) {
-
-        if (len == 0) {
-            if (enc->omit) {
-                return RET_OK;
-            }
-
-            enc_ensure(env, enc, 1);
-            *(enc->p++) = 0;
-            return RET_OK;
-        }
-
-        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE);
-        enc->p += MAX_UINT64_ENCODED_SIZE;
-        enc->tmp = enc->p;
-
-        while (enif_get_list_cell(env, term, &head, &tail)) {
-            enc_ensure(env, enc, 4);
-            check_ret(ret, pack_utf8(env, head, enc));
-            term = tail;
-        }
-
-        payload_len = enc->p - enc->tmp;
-        enc->p = enc->tmp - MAX_UINT64_ENCODED_SIZE;
-        do_pack_uint32(env, payload_len, enc);
-        memmove(enc->p, enc->tmp, payload_len);
-        enc->p += payload_len;
-
-    } else if (enif_inspect_binary(env, term, &bin)) {
-
-        if (bin.size == 0) {
-            if (enc->omit) {
-                return RET_OK;
-            }
-
-            enc_ensure(env, enc, 1);
-            *(enc->p++) = 0;
-            return RET_OK;
-        }
-
-        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
-        do_pack_uint32(env, bin.size, enc);
-
-        memcpy(enc->p, bin.data, bin.size);
-        enc->p += bin.size;
-
-    } else {
-        return_error(env, term);
-    }
-
-    return RET_OK;
-}
-
-static inline ERL_NIF_TERM
 pack_bytes(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 {
     ErlNifBinary    bin;
@@ -530,10 +443,94 @@ pack_bytes(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 
     enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
 
-    do_pack_uint32(env, bin.size, enc);
+    do_pack_uint32(env, (uint32_t) bin.size, enc);
 
     memcpy(enc->p, bin.data, bin.size);
     enc->p += bin.size;
+
+    return RET_OK;
+}
+
+static inline ERL_NIF_TERM
+pack_string(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
+{
+    size_t          payload_len;
+    state_t        *state = (state_t *) enif_priv_data(env);
+    uint8_t        *p, *end;
+    ErlNifBinary    bin;
+    ERL_NIF_TERM    head, tail, ret;
+
+    if (!state->opts.with_utf8) {
+        return pack_bytes(env, term, enc);
+    }
+
+    if (enif_is_list(env, term)) {
+
+        if (term == state->nil) {
+            if (enc->omit) {
+                return RET_OK;
+            }
+
+            enc_ensure(env, enc, 1);
+            *(enc->p++) = 0;
+            return RET_OK;
+        }
+
+        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE);
+        enc->p += MAX_UINT64_ENCODED_SIZE;
+        enc->tmp = enc->p;
+
+        if (enif_inspect_iolist_as_binary(env, term, &bin)) {
+
+            p = bin.data;
+            end = bin.data + bin.size;
+            while (p < end) {
+                if (*p < 0x80) {
+                    *(enc->p)++ = *p;
+
+                } else {
+                    *(enc->p)++ = (uint8_t) (0xC0 + (*p >> 6));
+                    *(enc->p)++ = (uint8_t) (0x80 + (*p & 0x3F));
+                }
+                p++;
+            }
+
+        } else {
+
+            while (enif_get_list_cell(env, term, &head, &tail)) {
+                enc_ensure(env, enc, 4);
+                check_ret(ret, pack_utf8(env, head, enc));
+                term = tail;
+            }
+        }
+
+        payload_len = enc->p - enc->tmp;
+        enc->p = enc->tmp - MAX_UINT64_ENCODED_SIZE;
+        do_pack_uint32(env, (uint32_t) payload_len, enc);
+        memmove(enc->p, enc->tmp, payload_len);
+        enc->p += payload_len;
+
+    } else if (enif_is_binary(env, term) && enif_inspect_binary(env, term, &bin)) {
+
+        if (bin.size == 0) {
+            if (enc->omit) {
+                return RET_OK;
+            }
+
+            enc_ensure(env, enc, 1);
+            *(enc->p++) = 0;
+            return RET_OK;
+        }
+
+        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
+        do_pack_uint32(env, (uint32_t) bin.size, enc);
+
+        memcpy(enc->p, bin.data, bin.size);
+        enc->p += bin.size;
+
+    } else {
+        return_error(env, term);
+    }
 
     return RET_OK;
 }
@@ -590,7 +587,7 @@ pack_tag(ErlNifEnv *env, uint32_t id, enc_t *enc)
     return RET_OK;
 }
 
-field_t *
+static inline field_t *
 get_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node, ERL_NIF_TERM *out)
 {
     int32_t         arity;
@@ -614,13 +611,13 @@ pack_element_packed(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc, field_t *fiel
 {
     ERL_NIF_TERM    ret;
 
-    switch (field->f_type.type) {
+    switch (field->type) {
     case field_sint32:
         check_ret(ret, pack_sint32(env, term, enc));
         break;
 
     case field_enum:
-        check_ret(ret, pack_enum(env, term, enc, field->f_type.node));
+        check_ret(ret, pack_enum(env, term, enc, field->sub_node));
         break;
 
     case field_int32:
@@ -679,7 +676,7 @@ pack_field(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc, field_t *field)
     pack_tag(env, field->fnum, enc);
     sentinel = enc->p;
 
-    switch (field->f_type.type) {
+    switch (field->type) {
     case field_sint32:
         *(enc->sentinel) |= WIRE_TYPE_VARINT;
         check_ret(ret, pack_sint32(env, term, enc));
@@ -687,7 +684,7 @@ pack_field(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc, field_t *field)
 
     case field_enum:
         *(enc->sentinel) |= WIRE_TYPE_VARINT;
-        check_ret(ret, pack_enum(env, term, enc, field->f_type.node));
+        check_ret(ret, pack_enum(env, term, enc, field->sub_node));
         break;
 
     case field_int32:
@@ -769,14 +766,13 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
     stack_t        *stack;
     state_t        *state = (state_t *) enif_priv_data(env);
     field_t        *field;
-    uint32_t        len;
     ErlNifBinary    bin;
     ERL_NIF_TERM    head, tail, ret;
 
     stack = &(tdata->stack);
     enc = &(tdata->enc);
 
-    spot = stack->mem;
+    spot = stack->spots;
     if (!enif_get_tuple(env, term, &arity, to_const(spot->array))) {
         return_error(env, term);
     }
@@ -790,7 +786,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
     spot->type = spot_tuple;
     spot->pos = 0;
 
-    while (spot >= stack->mem) {
+    while (spot >= stack->spots) {
 
         if (spot->type == spot_tuple) {
             if (spot->pos == spot->node->size) {
@@ -800,7 +796,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
 
                     payload_len = enc->p - (enc->mem + spot->sentinel_size + MAX_UINT64_ENCODED_SIZE);
                     enc->p = enc->mem + spot->sentinel_size;
-                    do_pack_uint32(env, payload_len, enc);
+                    do_pack_uint32(env, (uint32_t) payload_len, enc);
                     memmove(enc->p, enc->mem + spot->sentinel_size + MAX_UINT64_ENCODED_SIZE, payload_len);
                     enc->p += payload_len;
                 }
@@ -809,13 +805,13 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                 continue;
             }
 
-            for (i = spot->pos; i < spot->node->size; i++) {
+            for (i = spot->pos; i < (size_t) (spot->node->size); i++) {
 
                 term = spot->array[i];
                 field = ((field_t *) (spot->node->fields)) + i;
 
                 enc->omit = FALSE;
-                if (field->o_type == occurrence_optional || field->f_type.type == field_oneof) {
+                if (field->o_type == occurrence_optional || field->type == field_oneof) {
 
                     if (term == state->atom_undefined) {
                         continue;
@@ -826,13 +822,13 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                     }
                 }
 
-                if (field->o_type == occurrence_repeated && field->opts.packed == TRUE) {
+                if (field->o_type == occurrence_repeated && field->packed == TRUE) {
 
-                    if (!enif_get_list_length(env, term, &len)) {
+                    if (!enif_is_list(env, term)) {
                         return_error(env, spot->array[i]);
                     }
 
-                    if (len == 0) {
+                    if (term == state->nil) {
                         continue;
                     }
 
@@ -851,25 +847,25 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
 
                     payload_len = enc->p - enc->sentinel - MAX_UINT64_ENCODED_SIZE;
                     enc->p = enc->sentinel;
-                    do_pack_uint32(env, payload_len, enc);
+                    do_pack_uint32(env, (uint32_t) payload_len, enc);
                     memmove(enc->p, enc->sentinel + MAX_UINT64_ENCODED_SIZE, payload_len);
                     enc->p += payload_len;
 
                 } else if (field->o_type == occurrence_repeated) {
 
-                    if (!enif_get_list_length(env, term, &len)) {
+                    if (!enif_is_list(env, term)) {
                         return_error(env, term);
                     }
 
-                    if (len == 0) {
+                    if (term == state->nil) {
                         continue;
                     }
 
-                    if (field->f_type.type == field_msg || field->f_type.type == field_map) {
+                    if (field->type == field_msg || field->type == field_map) {
 
                         spot++;
                         stack_ensure(env, stack, &spot);
-                        spot->node = field->f_type.node;
+                        spot->node = field->sub_node;
                         if (spot->node == NULL) {
                             return_error(env, term);
                         }
@@ -881,23 +877,24 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                         break;
 
                     } else {
-                        while (enif_get_list_cell(env, term, &head, &tail)) {
-                            check_ret(ret, pack_field(env, head, enc, field));
 
+                        while (enif_get_list_cell(env, term, &head, &tail)) {
+
+                            check_ret(ret, pack_field(env, head, enc, field));
                             term = tail;
                         }
                     }
 
                 } else {
 
-                    if (field->f_type.type == field_oneof) {
-                        field = get_oneof_field(env, spot->array[i], field->f_type.node, &term);
+                    if (field->type == field_oneof) {
+                        field = get_oneof_field(env, spot->array[i], field->sub_node, &term);
                         if (field == NULL) {
                             return_error(env, spot->array[i]);
                         }
                     }
 
-                    if (field->f_type.type == field_msg || field->f_type.type == field_map) {
+                    if (field->type == field_msg || field->type == field_map) {
                         enc->sentinel = enc->p;
                         pack_tag(env, field->fnum, enc);
                         *(enc->sentinel) |= WIRE_TYPE_LENGTH_PREFIXED;
@@ -909,12 +906,12 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                             return_error(env, term);
                         }
 
-                        if (field->f_type.type == field_msg) {
+                        if (field->type == field_msg) {
                             (spot->array)++;
                             arity--;
                         }
 
-                        spot->node = field->f_type.node;
+                        spot->node = field->sub_node;
                         if (spot->node == NULL || arity != spot->node->size) {
                             return_error(env, term);
                         }

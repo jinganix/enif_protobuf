@@ -7,17 +7,6 @@
 
 #include "enif_protobuf.h"
 
-struct field_type_s {
-    field_type_e    type;
-    node_t         *node;
-    ERL_NIF_TERM    name;
-};
-
-struct opts_s {
-    ERL_NIF_TERM    defaut_value;
-    int32_t         packed;
-};
-
 struct enum_field_s {
     ERL_NIF_TERM    name;
     int32_t         value;
@@ -26,23 +15,32 @@ struct enum_field_s {
 
 struct field_s {
     ERL_NIF_TERM        name;
-    uint32_t            proto_v;
-    int32_t             id;
-    int32_t             fnum;
-    int32_t             rnum;
-    field_type_t        f_type;
     occurrence_type_e   o_type;
-    opts_t              opts;
+    field_type_e        type;
+    node_t             *sub_node;
+    ERL_NIF_TERM        sub_name;
+    ERL_NIF_TERM        defaut_value;
+    uint32_t            id;
+    uint32_t            fnum;
+    uint32_t            rnum;
+    uint32_t            proto_v;
+    uint32_t            is_oneof;
+    uint32_t            packed;
+};
+
+struct fnum_field_s {
+    uint32_t        fnum;
+    field_t        *field;
 };
 
 struct node_s {
     node_type_e     n_type;
     ERL_NIF_TERM    name;
-    int32_t         id;
+    uint32_t        id;
     uint32_t        proto_v;
-    int32_t         size;
+    uint32_t        size;
+    uint32_t        v_size;
     void           *fields;
-    int32_t         v_size;
     void           *v_fields;
 };
 
@@ -62,10 +60,22 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, E
 ERL_NIF_TERM
 prelink_nodes(ErlNifEnv *env);
 
+ERL_NIF_TERM
+stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot);
+
 int
 get_field_compare_name(const void *a, const void *b);
 
 int
+get_map_field_compare_fnum(const void *a, const void *b);
+
+int
+get_field_compare_fnum(const void *a, const void *b);
+
+int
 get_enum_compare_name(const void *a, const void *b);
+
+int
+get_enum_compare_value(const void *a, const void *b);
 
 #endif
