@@ -574,25 +574,24 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, E
 }
 
 ERL_NIF_TERM
-prelink_nodes(ErlNifEnv *env)
+prelink_nodes(ErlNifEnv *env, cache_t *cache)
 {
     size_t          i;
     node_t         *node;
     field_t        *f;
-    state_t        *state = (state_t *) enif_priv_data(env);
 	uint32_t		j;
     fnum_field_t   *ff;
 
-    for (i = 0; i < state->cache->size; i++) {
+    for (i = 0; i < cache->size; i++) {
 
-        node = state->cache->names[i].node;
+        node = cache->names[i].node;
         if (node->n_type == node_msg) {
 
             for (j = 0; j < node->size; j++) {
 
                 f = (field_t *) (node->fields) + j;
                 if (f->type == field_msg || f->type == field_enum) {
-                    f->sub_node = get_node_by_name(f->sub_name, state->cache);
+                    f->sub_node = get_node_by_name(f->sub_name, cache);
 
                     if (f->sub_node == NULL) {
                         return_error(env, f->sub_name);
@@ -605,7 +604,7 @@ prelink_nodes(ErlNifEnv *env)
 
                 f = ff->field;
                 if (f->type == field_msg || f->type == field_enum) {
-                    f->sub_node = get_node_by_name(f->sub_name, state->cache);
+                    f->sub_node = get_node_by_name(f->sub_name, cache);
 
                     if (f->sub_node == NULL) {
                         return_error(env, f->sub_name);

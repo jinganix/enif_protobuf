@@ -168,6 +168,7 @@ struct spot_s {
 };
 
 typedef struct tdata_s {
+    ErlNifMutex    *mutex;
     stack_t         stack;
     enc_t           enc;
     dec_t           dec;
@@ -180,7 +181,6 @@ typedef struct lock_s {
 
 struct state_s {
     cache_t        *cache;
-    cache_t        *old_cache;
 
     uint32_t        lock_n;
     uint32_t        lock_used;

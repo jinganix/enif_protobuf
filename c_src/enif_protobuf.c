@@ -26,6 +26,7 @@ make_atom(ErlNifEnv *env, const char *name)
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 {
+    char            buf[16];
     enc_t          *enc;
     uint32_t        lock_n, i;
     stack_t        *stack;
@@ -81,6 +82,8 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         for (i = 0; i < state->lock_n; i++) {
 
             state->locks[i].tdata = &(state->tdata[i]);
+            sprintf(buf, "cache_mutex_%d", i);
+            state->locks[i].tdata->mutex = enif_mutex_create(buf);
         }
 
         state->integer_zero = enif_make_int(env, 0);
@@ -167,6 +170,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     char            buf[16];
     spot_t         *spot;
     node_t         *node;
+    cache_t        *cache, *old_cache;
     stack_t        *stack;
     int32_t         arity;
     state_t        *state = (state_t *) enif_priv_data(env);
@@ -225,13 +229,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         return_error(env, argv[0]);
     }
 
-    if (state->old_cache != NULL) {
-        cache_destroy(&(state->old_cache));
-    }
-
-    state->old_cache = state->cache;
-
-    if (cache_create(len, &(state->cache)) != RET_OK) {
+    if (cache_create(len, &(cache)) != RET_OK) {
         return_exception(env, state->atom_error);
     }
 
@@ -253,12 +251,16 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             max_fields = max_fields >= node->size ? max_fields : node->size;
         }
 
-        cache_insert(node, state->cache);
+        cache_insert(node, cache);
         term = tail;
     }
-    cache_sort(state->cache);
+    cache_sort(cache);
 
-    check_ret(ret, prelink_nodes(env));
+    check_ret(ret, prelink_nodes(env, cache));
+
+    for (i = 0; i < state->lock_n; i++) {
+        enif_mutex_lock(state->tdata[i].mutex);
+    }
 
     for (i = 0; i < state->lock_n; i++) {
 
@@ -280,6 +282,17 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         }
     }
 
+    old_cache = state->cache;
+    state->cache = cache;
+
+    for (i = 0; i < state->lock_n; i++) {
+        enif_mutex_unlock(state->tdata[i].mutex);
+    }
+
+    if (old_cache != NULL) {
+        cache_destroy(&old_cache);
+    }
+
     return state->atom_ok;
 }
 
@@ -290,10 +303,6 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     if(argc != 0) {
         return enif_make_badarg(env);
-    }
-
-    if (state->old_cache != NULL) {
-        cache_destroy(&(state->old_cache));
     }
 
     if (state->cache != NULL) {
@@ -361,7 +370,14 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;
 
-    check_ret(ret, encode(env, argv[0], tdata));
+    enif_mutex_lock(tdata->mutex);
+    if ((ret = (encode(env, argv[0], tdata))) != RET_OK) {
+        debug("ret %lu", (unsigned long) ret);
+        enif_mutex_unlock(tdata->mutex);
+        return ret;
+    }
+    enif_mutex_unlock(tdata->mutex);
+    //check_ret(ret, encode(env, argv[0], tdata));
 
     return tdata->enc.result;
 }
