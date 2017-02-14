@@ -111,7 +111,7 @@ run_test(Description, DataSize, Action) ->
 
 run_test_aux(Description, DataSize, Action) ->
     MinSampleTime = 2, %% seconds
-    TargetTime = 4,   %% seconds
+    TargetTime = 30,   %% seconds
     {Elapsed, NumIterations} = iterate_until_elapsed(MinSampleTime, Action),
     TargetNumIterations = round((TargetTime / Elapsed) * NumIterations),
     Elapsed2 = time_action(TargetNumIterations, Action),
