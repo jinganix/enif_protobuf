@@ -20,12 +20,12 @@ ways. Here we use the command line tool. For info on integration with
 rebar, see further down.
 ```
 # export GPB_PATH=/path/to/gpb
-# ${GPB_PATH}/gpb/bin/protoc-erl -I. x.proto
+# ${GPB_PATH}/bin/protoc-erl -I. x.proto
 ```
 Now we've got `x.erl` and `x.hrl`. First we compile it and then we can
 try it out in the Erlang shell:
 ```erlang
-# erlc -I${PATH_TO_GPB}/include x.erl
+# erlc -I${GPB_PATH}/include x.erl
 # export EPB_PATH=/path/to/enif_protobuf
 # erl -pa ${EPB_PATH}/ebin
 Erlang/OTP 18 [erts-7.3] [source] [64-bit] [smp:4:4] [async-threads:10] [kernel-poll:false]
