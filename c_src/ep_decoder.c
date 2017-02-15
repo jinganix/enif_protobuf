@@ -524,6 +524,7 @@ unpack_field(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire_ty
 {
     ERL_NIF_TERM    ret;
 
+    *term = 0;
     switch (field->type) {
     case field_sint32:
         if (wire_type != WIRE_TYPE_VARINT) {
@@ -825,12 +826,18 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
 
             t = spot->t_arr;
             t_used_end = spot->t_arr + spot->t_used;
+            field = (field_t *) (spot->node->fields);
             while (t < t_used_end) {
+
+                if (field->o_type == occurrence_optional && *t == state->atom_undefined) {
+                    return_error(env, dec->term);
+                }
 
                 if (enif_is_list(env, *t)) {
                     enif_make_reverse_list(env, *t, t);
                 }
                 t++;
+                field++;
             }
 
             spot->pos = 0;
@@ -845,6 +852,7 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
             t_sp = spot;
             spot--;
             if (spot < stack->spots) {
+
                 dec->result = term;
                 break;
             }
@@ -898,7 +906,7 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
                 if (field->o_type == occurrence_repeated && field->packed == TRUE) {
 
                     if (wire_type != WIRE_TYPE_LENGTH_PREFIXED) {
-                        pass_length_prefixed(env, dec);
+                        check_ret(ret, pass_length_prefixed(env, dec));
 
                     } else {
                         check_ret(ret, unpack_element_packed(env, dec, &(spot->t_arr[field->rnum]), field));
@@ -940,7 +948,9 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
                     } else {
 
                         check_ret(ret, unpack_field(env, dec, &head, wire_type, field));
-                        spot->t_arr[field->rnum] = enif_make_list_cell(env, head, spot->t_arr[field->rnum]);
+                        if (head) {
+                            spot->t_arr[field->rnum] = enif_make_list_cell(env, head, spot->t_arr[field->rnum]);
+                        }
                     }
 
                 } else {
@@ -990,21 +1000,21 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
 
                     } else {
                         check_ret(ret, unpack_field(env, dec, &(term), wire_type, field));
+						if (term) {
+							if (field->is_oneof) {
+								spot->t_arr[field->rnum] = enif_make_tuple2(env, field->name, term);
 
-                        if (field->is_oneof) {
-                            spot->t_arr[field->rnum] = enif_make_tuple2(env, field->name, term);
-
-                        } else {
-                            spot->t_arr[field->rnum] = term;
-                        }
+							}
+							else {
+								spot->t_arr[field->rnum] = term;
+							}
+						}
                     }
                 }
             }
 
         }
     }
-
-    dec->result ? dec->result : enif_make_tuple_from_array(env, spot->t_arr, (unsigned) (spot->t_used));
 
     return RET_OK;
 }
