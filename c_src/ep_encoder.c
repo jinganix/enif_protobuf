@@ -244,6 +244,26 @@ pack_sint64(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 }
 
 static inline ERL_NIF_TERM
+pack_int64(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
+{
+    int64_t     val;
+
+    if (!enif_get_int64(env, term, &val)) {
+        return_error(env, term);
+    }
+
+    if (enc->omit && val == 0) {
+        return RET_OK;
+    }
+
+    enc_ensure_default(env, enc);
+
+    do_pack_uint64(env, (uint64_t) val, enc);
+
+    return RET_OK;
+}
+
+static inline ERL_NIF_TERM
 pack_fixed64(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
 {
     int64_t     val;
@@ -633,6 +653,9 @@ pack_element_packed(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc, field_t *fiel
         break;
 
     case field_int64:
+        check_ret(ret, pack_int64(env, term, enc));
+        break;
+
     case field_uint64:
         check_ret(ret, pack_uint64(env, term, enc));
         break;
@@ -703,6 +726,10 @@ pack_field(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc, field_t *field)
         break;
 
     case field_int64:
+        *(enc->sentinel) |= WIRE_TYPE_VARINT;
+        check_ret(ret, pack_int64(env, term, enc));
+        break;
+
     case field_uint64:
         *(enc->sentinel) |= WIRE_TYPE_VARINT;
         check_ret(ret, pack_uint64(env, term, enc));

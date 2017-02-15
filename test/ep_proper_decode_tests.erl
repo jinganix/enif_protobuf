@@ -30,6 +30,8 @@ utf8char() ->
 
 utf8string() -> list(utf8char()).
 
+ascii_string() -> list(choose(0, 127)).
+
 uint32() -> choose(0, 4294967295).
 
 sint32() -> choose(-2147483648, 2147483647).
@@ -51,29 +53,7 @@ value() ->
         {sint32(), enum}, {utf8string(), string},
         {binary(), bytes}]).
 
-compare_messages(ExpectedMsg, Msg) ->
-    lists:foldl(fun({E, D}, Acc) ->
-        compare(E, D) andalso Acc
-    end, true, lists:zip(tuple_to_list(ExpectedMsg), tuple_to_list(Msg))).
-
-compare(A, A) -> true;
-compare([A], B) -> compare(A, B);
-compare(A, [B]) -> compare(A, B);
-compare(A, B) when is_tuple(A), is_tuple(B) ->
-    compare(tuple_to_list(A), tuple_to_list(B));
-compare([A | RA], [B | RB]) ->
-    compare(A, B) andalso compare(RA, RB);
-compare(A, B) when is_float(A), is_float(B) ->
-    <<A32:32/little-float>> = <<A:32/little-float>>,
-    <<B32:32/little-float>> = <<B:32/little-float>>,
-    if A =:= B -> true;
-        A32 =:= B32 -> true;
-        true -> false
-    end;
-compare(A, B) ->
-    error_logger:error_msg("~p =/= ~p~n", [A, B]), false.
-
-prop_decode_varint() ->
+prop_decode_int32() ->
     Defs = [
         {{msg, m4}, [
             #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = int32, occurrence = required, opts = []},
@@ -85,7 +65,7 @@ prop_decode_varint() ->
     ok = enif_protobuf:load_cache(Defs),
     ?FORALL(Message,
         #m4{
-            a = oneof([sint32()]),
+            a = sint32(),
             b = oneof([sint32(), undefined]),
             c = list(sint32()),
             d = list(sint32())
@@ -95,7 +75,95 @@ prop_decode_varint() ->
             enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
         end).
 
-prop_decode_varint64() ->
+prop_decode_int64() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = int64, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = int64, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = int64, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = int64, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = sint64(),
+            b = oneof([sint64(), undefined]),
+            c = list(sint64()),
+            d = list(sint64())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_uint32() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = uint32, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = uint32, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = uint32, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = uint32, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = uint32(),
+            b = oneof([uint32(), undefined]),
+            c = list(uint32()),
+            d = list(uint32())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_uint64() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = uint64, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = uint64, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = uint64, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = uint64, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = uint64(),
+            b = oneof([uint64(), undefined]),
+            c = list(uint64()),
+            d = list(uint64())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_sint32() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = sint32, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = sint32, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = sint32, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = sint32, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = sint32(),
+            b = oneof([sint32(), undefined]),
+            c = list(sint32()),
+            d = list(sint32())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_sint64() ->
     Defs = [
         {{msg, m4}, [
             #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = sint64, occurrence = required, opts = []},
@@ -107,7 +175,95 @@ prop_decode_varint64() ->
     ok = enif_protobuf:load_cache(Defs),
     ?FORALL(Message,
         #m4{
-            a = oneof([sint64()]),
+            a = sint64(),
+            b = oneof([sint64(), undefined]),
+            c = list(sint64()),
+            d = list(sint64())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_fixed32() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = fixed32, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = fixed32, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = fixed32, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = fixed32, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = uint32(),
+            b = oneof([uint32(), undefined]),
+            c = list(uint32()),
+            d = list(uint32())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_fixed64() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = fixed64, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = fixed64, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = fixed64, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = fixed64, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = uint64(),
+            b = oneof([uint64(), undefined]),
+            c = list(uint64()),
+            d = list(uint64())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_sfixed32() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = sfixed32, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = sfixed32, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = sfixed32, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = sfixed32, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = sint32(),
+            b = oneof([sint32(), undefined]),
+            c = list(sint32()),
+            d = list(sint32())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_sfixed64() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = sfixed64, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = sfixed64, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = sfixed64, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = sfixed64, occurrence = repeated, opts = [packed]}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = sint64(),
             b = oneof([sint64(), undefined]),
             c = list(sint64()),
             d = list(sint64())
@@ -183,6 +339,68 @@ prop_decode_bool() ->
             enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
         end).
 
+prop_decode_ascii_string() ->
+    Defs = [
+        {{msg, m3}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m3.a, type = string, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m3.b, type = string, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m3.c, type = string, occurrence = repeated, opts = []}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ok = enif_protobuf:set_opts([{string_as_list, true}]),
+    ?FORALL(Message,
+        #m3{
+            a = ascii_string(),
+            b = oneof([ascii_string(), undefined]),
+            c = list(ascii_string())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m3) =:= gpb:decode_msg(Bin, m3, Defs)
+        end).
+
+prop_decode_utf8_string() ->
+    Defs = [
+        {{msg, m3}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m3.a, type = string, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m3.b, type = string, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m3.c, type = string, occurrence = repeated, opts = []}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ok = enif_protobuf:set_opts([{with_utf8, true}, {string_as_list, true}]),
+    ?FORALL(Message,
+        #m3{
+            a = utf8string(),
+            b = oneof([utf8string(), undefined]),
+            c = list(utf8string())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m3) =:= gpb:decode_msg(Bin, m3, Defs)
+        end).
+
+prop_encode_bytes() ->
+    Defs = [
+        {{msg, m3}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m3.a, type = bytes, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m3.b, type = bytes, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m3.c, type = bytes, occurrence = repeated, opts = []}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m3{
+            a = binary(),
+            b = oneof([binary(), undefined]),
+            c = list(binary())
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m3) =:= gpb:decode_msg(Bin, m3, Defs)
+        end).
+
 prop_decode_map() ->
     Type = {map, string, fixed32},
     Defs = [
@@ -193,17 +411,63 @@ prop_decode_map() ->
         ]}
     ],
     ok = enif_protobuf:load_cache(Defs),
-    ok = enif_protobuf:set_opts([{string_as_list, true}, {with_utf8, true}]),
+    ok = enif_protobuf:set_opts([{string_as_list, true}, {with_utf8, false}]),
     ?FORALL(Message,
         #m3{
-            a = {string(), integer()},
-            b = oneof([{string(), integer()}, undefined]),
-            c = list({string(), integer()})
+            a = {ascii_string(), integer()},
+            b = oneof([{ascii_string(), integer()}, undefined]),
+            c = list({ascii_string(), integer()})
         },
         begin
             Bin = gpb:encode_msg(Message, Defs),
             Decoded = enif_protobuf:decode(Bin, m3),
             Decoded#m3{c = lists:reverse(Decoded#m3.c)} =:= gpb:decode_msg(Bin, m3, Defs)
+        end).
+
+prop_decode_enum() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = {enum, e}, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = {enum, e}, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = {enum, e}, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = {enum, e}, occurrence = repeated, opts = [packed]}
+        ]},
+        {{enum, e}, [{v1, 100}, {v2, 150}]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = oneof([v1, v2, sint32()]),
+            b = oneof([v1, v2, sint32(), undefined]),
+            c = list(oneof([v1, v2, sint32()])),
+            d = list(oneof([v1, v2, sint32()]))
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
+        end).
+
+prop_decode_enum_aliases() ->
+    Defs = [
+        {{msg, m4}, [
+            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = {enum, e}, occurrence = required, opts = []},
+            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = {enum, e}, occurrence = optional, opts = []},
+            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = {enum, e}, occurrence = repeated, opts = []},
+            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = {enum, e}, occurrence = repeated, opts = [packed]}
+        ]},
+        {{enum, e}, [{option, allow_alias, true}, {v1, 100}, {v2, 150}, {v3, 100}]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?FORALL(Message,
+        #m4{
+            a = oneof([v1, v2, v3, sint32()]),
+            b = oneof([v1, v2, v3, sint32(), undefined]),
+            c = list(oneof([v1, v2, v3, sint32()])),
+            d = list(oneof([v1, v2, v3, sint32()]))
+        },
+        begin
+            Bin = gpb:encode_msg(Message, Defs),
+            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
         end).
 
 prop_decode_oneof() ->
@@ -222,7 +486,7 @@ prop_decode_oneof() ->
             enif_protobuf:decode(Bin, m1) =:= gpb:decode_msg(Bin, m1, Defs)
         end).
 
-prop_decode_msg_with_sub_msg_field() ->
+prop_decode_sub_msg() ->
     Defs = [
         {{msg, m3}, [
             #?gpb_field{name = a, fnum = 1, rnum = #m3.a, type = {msg, m2}, occurrence = required, opts = []},
@@ -244,51 +508,5 @@ prop_decode_msg_with_sub_msg_field() ->
         begin
             Bin = gpb:encode_msg(Message, Defs),
             enif_protobuf:decode(Bin, m3) =:= gpb:decode_msg(Bin, m3, Defs)
-        end).
-
-prop_decode_msg_with_enum_field() ->
-    Defs = [
-        {{msg, m4}, [
-            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = {enum, e}, occurrence = required, opts = []},
-            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = {enum, e}, occurrence = optional, opts = []},
-            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = {enum, e}, occurrence = repeated, opts = []},
-            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = {enum, e}, occurrence = repeated, opts = [packed]}
-        ]},
-        {{enum, e}, [{v1, 100}, {v2, 150}]}
-    ],
-    ok = enif_protobuf:load_cache(Defs),
-    ?FORALL(Message,
-        #m4{
-            a = oneof([v1, v2, integer()]),
-            b = oneof([v1, v2, integer(), undefined]),
-            c = list(oneof([v1, v2, integer()])),
-            d = list(oneof([v1, v2, integer()]))
-        },
-        begin
-            Bin = gpb:encode_msg(Message, Defs),
-            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
-        end).
-
-prop_encode_msg_with_enum_aliases() ->
-    Defs = [
-        {{msg, m4}, [
-            #?gpb_field{name = a, fnum = 1, rnum = #m4.a, type = {enum, e}, occurrence = required, opts = []},
-            #?gpb_field{name = b, fnum = 2, rnum = #m4.b, type = {enum, e}, occurrence = optional, opts = []},
-            #?gpb_field{name = c, fnum = 3, rnum = #m4.c, type = {enum, e}, occurrence = repeated, opts = []},
-            #?gpb_field{name = d, fnum = 4, rnum = #m4.d, type = {enum, e}, occurrence = repeated, opts = [packed]}
-        ]},
-        {{enum, e}, [{option, allow_alias, true}, {v1, 100}, {v2, 150}, {v3, 100}]}
-    ],
-    ok = enif_protobuf:load_cache(Defs),
-    ?FORALL(Message,
-        #m4{
-            a = oneof([v1, v2, v3, integer()]),
-            b = oneof([v1, v2, v3, integer(), undefined]),
-            c = list(oneof([v1, v2, v3, integer()])),
-            d = list(oneof([v1, v2, v3, integer()]))
-        },
-        begin
-            Bin = gpb:encode_msg(Message, Defs),
-            enif_protobuf:decode(Bin, m4) =:= gpb:decode_msg(Bin, m4, Defs)
         end).
 -endif.

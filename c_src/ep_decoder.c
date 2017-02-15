@@ -117,6 +117,22 @@ unpack_fixed32(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
 }
 
 static inline ERL_NIF_TERM
+unpack_sfixed32(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
+{
+    int32_t         val = 0;
+
+    if (dec->p + sizeof(int32_t) <= dec->end) {
+
+        val = *(int32_t *) (dec->p);
+        *term = enif_make_int(env, val);
+        dec->p += sizeof(int32_t);
+        return RET_OK;
+    }
+
+    return_error(env, dec->term);
+}
+
+static inline ERL_NIF_TERM
 unpack_uint64(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
 {
     uint32_t        shift = 0, left = 10;
@@ -197,6 +213,22 @@ unpack_fixed64(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
         val = *(uint64_t *) (dec->p);
         *term = enif_make_ulong(env, (unsigned long) val);
         dec->p += sizeof(uint64_t);
+        return RET_OK;
+    }
+
+    return_error(env, dec->term);
+}
+
+static inline ERL_NIF_TERM
+unpack_sfixed64(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
+{
+    int64_t         val;
+
+    if (dec->p + sizeof(int64_t) <= dec->end) {
+
+        val = *(int64_t *) (dec->p);
+        *term = enif_make_long(env, (long) val);
+        dec->p += sizeof(int64_t);
         return RET_OK;
     }
 
@@ -298,20 +330,20 @@ unpack_utf8(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
 
     } else if ((*(dec->p) & 0xE0) == 0xC0 && size >= 2) {
         val = ((dec->p[0] & 0x1F) << 6)
-                      | ((dec->p[1] & 0x3F));
+                              | ((dec->p[1] & 0x3F));
         dec->p += 2;
 
     } else if((dec->p[0] & 0xF0) == 0xE0 && size >= 3) {
         val =  ((dec->p[0] & 0x0F) << 12)
-                        | ((dec->p[1] & 0x3F) << 6)
-                        | ((dec->p[2] & 0x3F));
+                                | ((dec->p[1] & 0x3F) << 6)
+                                | ((dec->p[2] & 0x3F));
         dec->p += 3;
 
     } else if ((dec->p[0] & 0xF8) == 0xF0 && size >= 4) {
         val =  ((dec->p[0] & 0x07) << 18)
-                        | ((dec->p[1] & 0x3F) << 12)
-                        | ((dec->p[2] & 0x3F) << 6)
-                        | ((dec->p[3] & 0x3F));
+                                | ((dec->p[1] & 0x3F) << 12)
+                                | ((dec->p[2] & 0x3F) << 6)
+                                | ((dec->p[3] & 0x3F));
         dec->p += 4;
 
     } else {
@@ -376,6 +408,8 @@ unpack_string(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
         while (dec->p < end) {
             *term = enif_make_list_cell(env, enif_make_int(env, *(dec->p)++), *term);
         }
+
+        enif_make_reverse_list(env, *term, term);
         return RET_OK;
     }
 
@@ -384,6 +418,7 @@ unpack_string(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term)
         *term = enif_make_list_cell(env, r_term, *term);
     }
 
+    enif_make_reverse_list(env, *term, term);
     return RET_OK;
 }
 
@@ -487,18 +522,24 @@ unpack_element_packed(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term, field_t *f
             check_ret(ret, unpack_uint64(env, dec, &head));
             break;
 
-        case field_sfixed32:
         case field_fixed32:
             check_ret(ret, unpack_fixed32(env, dec, &head));
+            break;
+
+        case field_sfixed32:
+            check_ret(ret, unpack_sfixed32(env, dec, &head));
             break;
 
         case field_float:
             check_ret(ret, unpack_float(env, dec, &head));
             break;
 
-        case field_sfixed64:
         case field_fixed64:
             check_ret(ret, unpack_fixed64(env, dec, &head));
+            break;
+
+        case field_sfixed64:
+            check_ret(ret, unpack_sfixed64(env, dec, &head));
             break;
 
         case field_double:
@@ -562,6 +603,12 @@ unpack_field(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire_ty
         break;
 
     case field_int64:
+        if (wire_type != WIRE_TYPE_VARINT) {
+            return pass_field(env, dec, wire_type);
+        }
+        check_ret(ret, unpack_int64(env, dec, term));
+        break;
+
     case field_uint64:
         if (wire_type != WIRE_TYPE_VARINT) {
             return pass_field(env, dec, wire_type);
@@ -577,6 +624,12 @@ unpack_field(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire_ty
         break;
 
     case field_sfixed32:
+        if (wire_type != WIRE_TYPE_32BIT) {
+            return pass_field(env, dec, wire_type);
+        }
+        check_ret(ret, unpack_sfixed32(env, dec, term));
+        break;
+
     case field_fixed32:
         if (wire_type != WIRE_TYPE_32BIT) {
             return pass_field(env, dec, wire_type);
@@ -592,6 +645,12 @@ unpack_field(ErlNifEnv *env, dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire_ty
         break;
 
     case field_sfixed64:
+        if (wire_type != WIRE_TYPE_64BIT) {
+            return pass_field(env, dec, wire_type);
+        }
+        check_ret(ret, unpack_sfixed64(env, dec, term));
+        break;
+
     case field_fixed64:
         if (wire_type != WIRE_TYPE_64BIT) {
             return pass_field(env, dec, wire_type);
@@ -824,20 +883,24 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
 
         if (dec->p == dec->end) {
 
-            t = spot->t_arr;
-            t_used_end = spot->t_arr + spot->t_used;
-            field = (field_t *) (spot->node->fields);
-            while (t < t_used_end) {
+            if (spot->node->n_type != node_map) {
+                t = spot->t_arr + 1;
+                t_used_end = spot->t_arr + spot->t_used;
+                field = (field_t *) (spot->node->fields);
+                while (t < t_used_end) {
 
-                if (field->o_type == occurrence_optional && *t == state->atom_undefined) {
-                    return_error(env, dec->term);
-                }
+                    if (field->o_type == occurrence_required
+                            && field->type != field_oneof
+                            && *t == state->atom_undefined) {
+                        return_error(env, dec->term);
+                    }
 
-                if (enif_is_list(env, *t)) {
-                    enif_make_reverse_list(env, *t, t);
+                    if (field->o_type == occurrence_repeated && enif_is_list(env, *t)) {
+                        enif_make_reverse_list(env, *t, t);
+                    }
+                    t++;
+                    field++;
                 }
-                t++;
-                field++;
             }
 
             spot->pos = 0;
@@ -1000,15 +1063,15 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
 
                     } else {
                         check_ret(ret, unpack_field(env, dec, &(term), wire_type, field));
-						if (term) {
-							if (field->is_oneof) {
-								spot->t_arr[field->rnum] = enif_make_tuple2(env, field->name, term);
+                        if (term) {
+                            if (field->is_oneof) {
+                                spot->t_arr[field->rnum] = enif_make_tuple2(env, field->name, term);
 
-							}
-							else {
-								spot->t_arr[field->rnum] = term;
-							}
-						}
+                            }
+                            else {
+                                spot->t_arr[field->rnum] = term;
+                            }
+                        }
                     }
                 }
             }
