@@ -16,8 +16,7 @@ message Person {
 }
 ```
 We can generate code for this definition in a number of different
-ways. Here we use the command line tool. For info on integration with
-rebar, see further down.
+ways. Here we use the command line tool.
 ```
 # export GPB_PATH=/path/to/gpb
 # ${GPB_PATH}/bin/protoc-erl -I. x.proto
