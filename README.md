@@ -32,23 +32,28 @@ Erlang/OTP 18 [erts-7.3] [source] [64-bit] [smp:4:4] [async-threads:10] [kernel-
 Eshell V7.3  (abort with ^G)
 1> rr("x.hrl").
 ['Person']
-2> Msg=#'Person'{name="abc def", id=345, email="a@example.com"}.
-#'Person'{name = "abc def",id = 345,email = "a@example.com"}
-3> Bin=x:encode_msg(Msg).
+2> Bin=x:encode_msg(#'Person'{name="abc def", id=345, email="a@example.com"}).
 <<10,7,97,98,99,32,100,101,102,16,217,2,26,13,97,64,101,
   120,97,109,112,108,101,46,99,111,109>>
-4> enif_protobuf:load_cache(x:get_msg_defs()).
+3> enif_protobuf:load_cache(x:get_msg_defs()).
 ok
-5> Bin=enif_protobuf:encode(Msg).
+4> Bin=enif_protobuf:encode(#'Person'{name="abc def", id=345, email="a@example.com"}).
 <<10,7,97,98,99,32,100,101,102,16,217,2,26,13,97,64,101,
   120,97,109,112,108,101,46,99,111,109>>
-6> enif_protobuf:decode(Bin,'Person').
+5> enif_protobuf:decode(Bin,'Person').
 #'Person'{name = <<"abc def">>,id = 345,
           email = <<"a@example.com">>}
-7> enif_protobuf:set_opts([{string_as_list,true}]).
+6> enif_protobuf:set_opts([{string_as_list, true}]).
 ok
-8> enif_protobuf:decode(Bin,'Person').
+7> enif_protobuf:decode(Bin,'Person').
 #'Person'{name = "abc def",id = 345,email = "a@example.com"}
+8> enif_protobuf:encode(#'Person'{name="你好", id=345, email="a@example.com"}).
+{error,[20320,22909]}
+9> enif_protobuf:set_opts([{with_utf8, true}]).
+ok
+10> enif_protobuf:encode(#'Person'{name="你好", id=345, email="a@example.com"}).
+<<10,6,228,189,160,229,165,189,16,217,2,26,13,97,64,101,
+  120,97,109,112,108,101,46,99,111,109>>
 ```
 
 Performance
