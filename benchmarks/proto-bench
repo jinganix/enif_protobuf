@@ -72,21 +72,11 @@ pickup_msg_file_or_files(["--multi" | MsgFilesAndRest]) ->
 pickup_msg_file_or_files([MsgFile | Rest]) ->
     {[MsgFile], Rest}.
 
-
-decode_bins([MsgBin | Rest], MsgModule, MsgName) ->
-    MsgModule:decode_msg(MsgBin, MsgName),
-    decode_bins(Rest, MsgModule, MsgName);
-decode_bins([], _, _) ->
-    ok.
-
-encode_msgs([Msg | Rest], MsgModule, undefined) ->
-    enif_protobuf:encode(Msg), %% MsgName not needed for records
-    encode_msgs(Rest, MsgModule, undefined);
-encode_msgs([Msg | Rest], MsgModule, MsgName) ->
-    enif_protobuf:encode(Msg, MsgName), %% MsgName needed for maps
-    encode_msgs(Rest, MsgModule, MsgName);
-encode_msgs([], _, _) ->
-    ok.
+%% decode_bins([MsgBin | Rest], MsgModule, MsgName) ->
+%%     MsgModule:decode_msg(MsgBin, MsgName),
+%%     decode_bins(Rest, MsgModule, MsgName);
+%% decode_bins([], _, _) ->
+%%     ok.
 
 %% encode_msgs([Msg | Rest], MsgModule, undefined) ->
 %%     MsgModule:encode_msg(Msg), %% MsgName not needed for records
@@ -96,6 +86,22 @@ encode_msgs([], _, _) ->
 %%     encode_msgs(Rest, MsgModule, MsgName);
 %% encode_msgs([], _, _) ->
 %%     ok.
+
+decode_bins([MsgBin | Rest], MsgModule, MsgName) ->
+    enif_protobuf:decode(MsgBin, MsgName),
+    decode_bins(Rest, MsgModule, MsgName);
+decode_bins([], _, _) ->
+    ok.
+
+encode_msgs([Msg | Rest], MsgModule, undefined) ->
+    %% Msg0 = setelement(3, Msg, unicode:characters_to_binary(element(3, Msg))),
+    enif_protobuf:encode(Msg), %% MsgName not needed for records
+    encode_msgs(Rest, MsgModule, undefined);
+encode_msgs([Msg | Rest], MsgModule, MsgName) ->
+    enif_protobuf:encode(Msg, MsgName), %% MsgName needed for maps
+    encode_msgs(Rest, MsgModule, MsgName);
+encode_msgs([], _, _) ->
+    ok.
 
 run_test(Description, DataSize, Action) ->
     {P, M} = spawn_monitor(

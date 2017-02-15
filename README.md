@@ -1,7 +1,7 @@
 # enif_protobuf
 A Google Protobuf implementation with enif (Erlang nif).
 
-Base on gpb, see more info at 
+Base on gpb, see more info at
 https://github.com/tomas-abrahamsson/gpb
 
 Basic example of using gpb
@@ -31,16 +31,25 @@ try it out in the Erlang shell:
 Erlang/OTP 18 [erts-7.3] [source] [64-bit] [smp:4:4] [async-threads:10] [kernel-poll:false]
 
 Eshell V7.3  (abort with ^G)
-1> rr("x.hrl").                                                           
+1> rr("x.hrl").
 ['Person']
-2> x:encode_msg(#'Person'{name="abc def", id=345, email="a@example.com"}).
+2> Msg=#'Person'{name="abc def", id=345, email="a@example.com"}.
+#'Person'{name = "abc def",id = 345,email = "a@example.com"}
+3> Bin=x:encode_msg(Msg).
 <<10,7,97,98,99,32,100,101,102,16,217,2,26,13,97,64,101,
   120,97,109,112,108,101,46,99,111,109>>
-3> enif_protobuf:load_cache(x:get_msg_defs()).
+4> enif_protobuf:load_cache(x:get_msg_defs()).
 ok
-4> enif_protobuf:encode(#'Person'{name="abc def", id=345, email="a@example.com"}).
+5> Bin=enif_protobuf:encode(Msg).
 <<10,7,97,98,99,32,100,101,102,16,217,2,26,13,97,64,101,
   120,97,109,112,108,101,46,99,111,109>>
+6> enif_protobuf:decode(Bin,'Person').
+#'Person'{name = <<"abc def">>,id = 345,
+          email = <<"a@example.com">>}
+7> enif_protobuf:set_opts([{string_as_list,true}]).
+ok
+8> enif_protobuf:decode(Bin,'Person').
+#'Person'{name = "abc def",id = 345,email = "a@example.com"}
 ```
 
 Performance
@@ -51,12 +60,12 @@ Here is a comparison between enif_protobuf(epb) and gpb
     [MB/s]        | epb    | gpb   | gpb nif |
     --------------+--------+-------+---------+
     small msgs    |        |       |         |
-      serialize   | 111.68 | 32.17 |  38.02  |
-      deserialize | in dev | 35.57 |  61.87  |
+      serialize   | 116.09 | 32.17 |  38.02  |
+      deserialize | 111.88 | 35.57 |  61.87  |
     --------------+--------+-------+---------+
     large msgs    |        |       |         |
-      serialize   | 106.27 | 20.90 |  38.64  |
-      deserialize | in dev | 32.53 |  59.29  |
+      serialize   | 122.86 | 20.90 |  38.64  |
+      deserialize | 114.72 | 32.53 |  59.29  |
     --------------+--------+-------+---------+
 
 HW info
@@ -66,7 +75,7 @@ HW info
     cache size	: 3072 KB
     cores/threads   : 4
     bogomips	: 6585.04
-    
+
     Erlang (SMP,ASYNC_THREADS) (BEAM) emulator version 7.3
 
 The performances are measured as number of processed MB/s, serialized form.  Higher values means better performance.

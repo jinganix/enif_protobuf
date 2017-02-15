@@ -29,7 +29,12 @@
 #define ARRAY_INIT_SIZE     32
 
 #ifdef _MSC_VER
-# define inline __inline
+#define inline __inline
+#define __func__ __FUNCTION__
+#endif
+
+#ifndef _MSC_VER
+#define sprintf_s(p, s, fmt, ...) sprintf(p, fmt, __VA_ARGS__)
 #endif
 
 #if 1
@@ -165,6 +170,7 @@ struct spot_s {
     size_t          t_size;
     size_t          t_used;
     ERL_NIF_TERM    result;
+    char           *end_sentinel;
 };
 
 typedef struct tdata_s {
@@ -190,6 +196,7 @@ struct state_s {
 
     struct opts_s {
         uint32_t    with_utf8;
+        uint32_t    string_as_list;
     } opts;
 
     ERL_NIF_TERM    integer_zero;

@@ -55,33 +55,6 @@ make_node(int fields_n, node_type_e n_type)
     return node;
 }
 
-/*
- * enum
- */
-ERL_NIF_TERM
-fill_enum_field(ErlNifEnv *env, ERL_NIF_TERM term, enum_field_t *field)
-{
-    int32_t         arity, value;
-    ERL_NIF_TERM   *array;
-
-    if (!enif_get_tuple(env, term, &arity, to_const(array)) || (arity != 2 && arity != 3)) {
-        return_error(env, term);
-    }
-
-    if (arity == 2) {
-
-        if (enif_is_atom(env, array[0]) && enif_get_int(env, array[1], &value)) {
-            field->name = array[0];
-            field->value = value;
-
-        } else {
-            return_error(env, term);
-        }
-    }
-
-    return RET_OK;
-}
-
 static int
 sort_compare_enum_field(const void *a, const void *b)
 {
@@ -98,10 +71,10 @@ ERL_NIF_TERM
 parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
 {
     state_t        *state = (state_t *) enif_priv_data(env);
-    int32_t         arity, allow_alias = 0;
+    int32_t         arity, allow_alias = 0,value;
     enum_field_t   *field, *v_field, *vf;
     ERL_NIF_TERM   *array;
-    ERL_NIF_TERM    head, tail, tmp, ret;
+    ERL_NIF_TERM    head, tail, tmp;
 
     tmp = term;
     while (enif_get_list_cell(env, tmp, &head, &tail)) {
@@ -127,6 +100,9 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
             } else {
                 return_error(env, head);
             }
+
+        } else if (arity != 2) {
+            return_error(env, head);
         }
 
         tmp = tail;
@@ -135,7 +111,24 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
     field = node->fields;
     v_field = node->v_fields;
     while (enif_get_list_cell(env, term, &head, &tail)) {
-        check_ret(ret, fill_enum_field(env, head, field));
+
+        if (!enif_get_tuple(env, head, &arity, to_const(array))) {
+            return_error(env, term);
+        }
+
+        if (arity == 2) {
+            if (enif_is_atom(env, array[0]) && enif_get_int(env, array[1], &value)) {
+                field->name = array[0];
+                field->value = value;
+
+            } else {
+                return_error(env, term);
+            }
+
+        } else {
+            term = tail;
+            continue;
+        }
 
         v_field->name = field->name;
         v_field->value = field->value;
@@ -155,6 +148,7 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
         field->proto_v = node->proto_v;
         field++;
         v_field++;
+
         term = tail;
     }
 
