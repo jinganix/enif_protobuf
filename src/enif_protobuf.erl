@@ -58,6 +58,5 @@ encode_msg(Msg, Defs) ->
     encode(Msg).
 
 decode_msg(Bin, Name, Defs) ->
-    io:format("~10000p~n", [Bin]),
     ok = load_cache(Defs),
     decode(Bin, Name).
