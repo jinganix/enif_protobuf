@@ -14,7 +14,6 @@
 
 #include "erl_nif.h"
 
-#define DEBUG       0
 #define USE_OS_MEM  0
 #define DEBUG_MEM   0
 

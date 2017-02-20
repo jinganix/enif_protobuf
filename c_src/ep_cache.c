@@ -9,37 +9,28 @@ cache_create(size_t size, cache_t **cache)
 {
     cache_t    *ca;
 
-    ca = _alloc(sizeof(cache_t));
+    ca = _calloc(sizeof(cache_t), 1);
     if (ca == NULL) {
         return RET_ERROR;
     }
 
     ca->size = size;
     ca->used = 0;
-    ca->ids = _alloc(sizeof(node_id_t) * size);
+    ca->ids = _calloc(sizeof(node_id_t) * size, 1);
     if (ca->ids == NULL) {
         _free(ca);
         return RET_ERROR;
     }
 
-    ca->names = _alloc(sizeof(node_name_t) * size);
+    ca->names = _calloc(sizeof(node_name_t) * size, 1);
     if (ca->names == NULL) {
-        _free(ca->names);
+        _free(ca->ids);
         _free(ca);
         return RET_ERROR;
     }
 
     *cache = ca;
     return RET_OK;
-}
-
-static inline void
-free_node(node_t *node)
-{
-	if (node->fields != NULL) {
-		_free(node->fields);
-	}
-    _free(node);
 }
 
 void

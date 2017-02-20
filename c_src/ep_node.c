@@ -37,22 +37,62 @@ make_node(int fields_n, node_type_e n_type)
 
         if (n_type == node_msg || n_type == node_oneof) {
             node->fields = _calloc(sizeof(field_t), fields_n);
+            if (node->fields == NULL) {
+                free_node(node);
+                return NULL;
+            }
 
         } else if (n_type == node_map) {
             node->fields = _calloc(sizeof(field_t), fields_n);
+            if (node->fields == NULL) {
+                free_node(node);
+                return NULL;
+            }
 
         } else if (n_type == node_enum) {
             node->fields = _calloc(sizeof(enum_field_t), fields_n);
             node->v_fields = _calloc(sizeof(enum_field_t), fields_n);
-        }
-
-        if (node->fields == NULL) {
-            _free(node);
-            return NULL;
+            if (node->fields == NULL || node->v_fields == NULL) {
+                free_node(node);
+                return NULL;
+            }
         }
     }
 
     return node;
+}
+
+void
+free_node(node_t *node)
+{
+    size_t          i;
+    field_t        *field;
+
+    if (node->fields != NULL) {
+
+        for (i = 0; i < node->size; i++) {
+            if (node->n_type == node_msg) {
+
+                field = &(((field_t *) node->fields)[i]);
+                if (field->type == field_map || field->type == field_oneof) {
+                    if (field->sub_node != NULL) {
+                        free_node(field->sub_node);
+                        field->sub_node = NULL;
+                    }
+                }
+            }
+        }
+
+        _free(node->fields);
+        node->fields = NULL;
+    }
+
+    if (node->v_fields != NULL) {
+        _free(node->v_fields);
+        node->v_fields = NULL;
+    }
+
+    _free(node);
 }
 
 static int

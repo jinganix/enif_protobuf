@@ -54,6 +54,9 @@ struct node_name_s {
     node_t         *node;
 };
 
+void
+free_node(node_t *node);
+
 ERL_NIF_TERM
 parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list);
 
