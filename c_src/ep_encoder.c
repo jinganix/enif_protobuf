@@ -335,7 +335,7 @@ pack_float(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
             val = -INFINITY;
 
         } else if (term == state->atom_nan) {
-            val = NAN;
+            val = _NAN;
 
         } else {
             return_error(env, term);
@@ -378,7 +378,7 @@ pack_double(ErlNifEnv *env, ERL_NIF_TERM term, enc_t *enc)
                 val = -INFINITY;
 
             } else if (term == state->atom_nan) {
-                val = NAN;
+                val = _NAN;
 
             } else {
                 return_error(env, term);
@@ -891,7 +891,6 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                     if (field->type == field_msg || field->type == field_map) {
 
                         spot++;
-                        stack_ensure(env, stack, &spot);
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {
                             return_error(env, term);
@@ -927,7 +926,6 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                         *(enc->sentinel) |= WIRE_TYPE_LENGTH_PREFIXED;
 
                         spot++;
-                        stack_ensure(env, stack, &spot);
 
                         if (!enif_get_tuple(env, term, &arity, to_const(spot->array))) {
                             return_error(env, term);
@@ -982,7 +980,6 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
             *(enc->sentinel) |= WIRE_TYPE_LENGTH_PREFIXED;
 
             spot++;
-            stack_ensure(env, stack, &spot);
             spot->node = (spot - 1)->node;
             spot->type = spot_tuple;
             spot->pos = 0;

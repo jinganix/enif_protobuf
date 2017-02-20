@@ -272,6 +272,8 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         enif_mutex_lock(state->tdata[i].mutex);
     }
 
+    stack_ensure_all(env, cache);
+
     for (i = 0; i < state->lock_n; i++) {
 
         stack = &(state->tdata[i].stack);
@@ -382,7 +384,6 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     enif_mutex_lock(tdata->mutex);
     if ((ret = (encode(env, argv[0], tdata))) != RET_OK) {
-        debug("ret %lu", (unsigned long) ret);
         enif_mutex_unlock(tdata->mutex);
         return ret;
     }

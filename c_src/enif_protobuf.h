@@ -24,12 +24,15 @@
 #define FALSE       0
 
 #define ENC_INIT_SIZE       1024 * 1024
-#define STACK_INIT_SIZE     32
+#define STACK_INIT_SIZE     2
 #define ARRAY_INIT_SIZE     32
 
 #ifdef _MSC_VER
 #define inline __inline
 #define __func__ __FUNCTION__
+#define _NAN (-NAN)
+#else
+#define _NAN NAN
 #endif
 
 #ifndef _MSC_VER
@@ -125,8 +128,6 @@ typedef enum {
 } node_type_e;
 
 struct stack_s {
-    spot_t         *tmp;
-    spot_t         *spot;
     spot_t         *end;
     spot_t         *spots;
     size_t          size;

@@ -987,7 +987,6 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
                         spot->field = field;
 
                         spot++;
-                        stack_ensure(env, stack, &spot);
 
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {
@@ -1027,7 +1026,6 @@ decode(ErlNifEnv *env, tdata_t *tdata, node_t *node)
                         t_sp = spot;
                         t_sp->pos = field->rnum;
                         spot++;
-                        stack_ensure(env, stack, &spot);
 
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {

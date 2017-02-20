@@ -13,6 +13,12 @@ ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field);
 
 static int
+sort_compare_name_field(const void *a, const void *b)
+{
+    return (int) (((field_t *) a)->name - ((field_t *) b)->name);
+}
+
+static int
 sort_compare_msg_field(const void *a, const void *b)
 {
     return (int) (((field_t *) a)->rnum - ((field_t *) b)->rnum);
@@ -381,7 +387,7 @@ parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(field_t), sort_compare_msg_field);
+    qsort(node->fields, node->size, sizeof(field_t), sort_compare_name_field);
 
     return RET_OK;
 }
@@ -469,7 +475,7 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
     field_t        *field, *f;
     int32_t         arity;
     state_t        *state = (state_t *) enif_priv_data(env);
-	uint32_t		i, j;
+    uint32_t		i, j;
     fnum_field_t   *ff;
     ERL_NIF_TERM    head, tail, ret;
     ERL_NIF_TERM   *array;
@@ -613,7 +619,7 @@ prelink_nodes(ErlNifEnv *env, cache_t *cache)
     size_t          i;
     node_t         *node;
     field_t        *f;
-	uint32_t		j;
+    uint32_t		j;
     fnum_field_t   *ff;
 
     for (i = 0; i < cache->size; i++) {
@@ -655,21 +661,133 @@ prelink_nodes(ErlNifEnv *env, cache_t *cache)
 ERL_NIF_TERM
 stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot)
 {
+    spot_t         *spots;
+    size_t          size;
+
     if ((*spot) >= stack->end) {
 
-        stack->tmp = _realloc(stack->spots, sizeof(spot_t) * (sizeof(spot_t) * stack->size * 2));
-        if (stack->tmp == NULL) {
-            return_exception(env, make_atom(env, "realloc_failed"));
+        size = stack->size * 2;
+        spots = _realloc(stack->spots, sizeof(spot_t) * size);
+        if (spots == NULL) {
+            return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
         }
 
-        *spot = stack->tmp + (*spot - stack->spots);
+        *spot = spots + (*spot - stack->spots);
 
-        stack->spots = stack->tmp;
-        stack->size *= 2;
+        memset(spots + stack->size, 0x00, sizeof(spot_t) * (size - stack->size));
+        stack->spots = spots;
+        stack->size = size;
         stack->end = stack->spots + stack->size;
     }
 
     return RET_OK;
+}
+
+ERL_NIF_TERM
+stack_ensure_size(ErlNifEnv *env, stack_t *stack, size_t size)
+{
+    spot_t         *spots;
+
+    if (stack->size >= size) {
+        return RET_OK;
+    }
+
+    spots = _realloc(stack->spots, sizeof(spot_t) * size);
+    if (spots == NULL) {
+        return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
+    }
+
+    memset(spots + stack->size, 0x00, sizeof(spot_t) * (size - stack->size));
+    stack->spots = spots;
+    stack->size = size;
+    stack->end = stack->spots + stack->size;
+
+    return RET_OK;
+}
+
+void
+stack_ensure_all(ErlNifEnv *env, cache_t *cache)
+{
+    size_t          i, j, stack_size;
+    spot_t         *spot;
+    field_t        *field;
+    stack_t        *stack;
+    state_t        *state = (state_t *) enif_priv_data(env);
+
+    stack = &(state->tdata[0].stack);
+
+    for (i = 0; i < cache->size; i++) {
+
+        spot = stack->spots;
+        spot->type = spot_tuple;
+        spot->node = cache->names[i].node;
+        spot->pos = 0;
+
+        while (spot >= stack->spots) {
+
+            if (spot->type == spot_tuple) {
+
+                if (spot->pos == spot->node->size) {
+
+                    spot->type = spot_default;
+                    spot->pos = 0;
+                    spot--;
+                    continue;
+                }
+
+                for (j = spot->pos; j < (size_t) (spot->node->size); j++) {
+
+                    spot->pos = j + 1;
+                    field = ((field_t *) (spot->node->fields)) + j;
+                    if (field->o_type == occurrence_repeated) {
+
+                        if (field->type == field_msg || field->type == field_map) {
+
+                            spot++;
+                            stack_ensure(env, stack, &spot);
+
+                            spot->type = spot_list;
+                            spot->pos = 0;
+                            spot->node = field->sub_node;
+                        }
+
+                    } else if (field->type == field_oneof
+                            || field->type == field_msg
+                            || field->type == field_map) {
+
+                        spot++;
+                        stack_ensure(env, stack, &spot);
+
+                        spot->type = spot_tuple;
+                        spot->pos = 0;
+                        spot->node = field->sub_node;
+                    }
+                }
+
+            } else if (spot->type == spot_list) {
+
+                if (spot->pos > 0) {
+                    spot--;
+                    continue;
+                }
+
+                spot->pos = 1;
+                spot++;
+                stack_ensure(env, stack, &spot);
+
+                spot->node = (spot - 1)->node;
+                spot->type = spot_tuple;
+                spot->pos = 0;
+            }
+        }
+    }
+
+    stack_size = stack->size;
+
+    for (i = 1; i < state->lock_n; i++) {
+        stack = &(state->tdata[i].stack);
+        stack_ensure_size(env, stack, stack_size);
+    }
 }
 
 int

@@ -63,6 +63,9 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, E
 ERL_NIF_TERM
 prelink_nodes(ErlNifEnv *env, cache_t *cache);
 
+void
+stack_ensure_all(ErlNifEnv *env, cache_t *cache);
+
 ERL_NIF_TERM
 stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot);
 
