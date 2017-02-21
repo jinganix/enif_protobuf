@@ -749,6 +749,7 @@ stack_ensure_all(ErlNifEnv *env, cache_t *cache)
                             spot->type = spot_list;
                             spot->pos = 0;
                             spot->node = field->sub_node;
+                            break;
                         }
 
                     } else if (field->type == field_oneof
@@ -761,6 +762,7 @@ stack_ensure_all(ErlNifEnv *env, cache_t *cache)
                         spot->type = spot_tuple;
                         spot->pos = 0;
                         spot->node = field->sub_node;
+                        break;
                     }
                 }
 

@@ -789,7 +789,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
     enc_t          *enc;
     spot_t         *spot;
     size_t          i, payload_len;
-    int32_t         arity, stack_changed = FALSE;
+    int32_t         arity;
     stack_t        *stack;
     state_t        *state = (state_t *) enif_priv_data(env);
     field_t        *field;
@@ -834,6 +834,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
 
             for (i = spot->pos; i < (size_t) (spot->node->size); i++) {
 
+                spot->pos = i + 1;
                 term = spot->array[i];
                 field = ((field_t *) (spot->node->fields)) + i;
 
@@ -899,7 +900,6 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                         spot->field = field;
                         spot->type = spot_list;
                         spot->list = term;
-                        stack_changed = TRUE;
                         break;
 
                     } else {
@@ -949,21 +949,12 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata)
                         enc_ensure_default(env, enc);
                         enc->p += MAX_UINT64_ENCODED_SIZE;
 
-                        stack_changed = TRUE;
                         break;
 
                     } else {
                         check_ret(ret, pack_field(env, term, enc, field));
                     }
                 }
-            }
-
-            if (stack_changed) {
-                stack_changed = FALSE;
-                (spot - 1)->pos = i + 1;
-
-            } else {
-                spot->pos = i;
             }
 
         } else if (spot->type == spot_list) {
