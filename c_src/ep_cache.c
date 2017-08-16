@@ -5,24 +5,24 @@
 #include "enif_protobuf.h"
 
 int
-cache_create(size_t size, cache_t **cache)
+ep_cache_create(size_t size, ep_cache_t **cache)
 {
-    cache_t    *ca;
+    ep_cache_t     *ca;
 
-    ca = _calloc(sizeof(cache_t), 1);
+    ca = _calloc(sizeof(ep_cache_t), 1);
     if (ca == NULL) {
         return RET_ERROR;
     }
 
     ca->size = size;
     ca->used = 0;
-    ca->ids = _calloc(sizeof(node_id_t) * size, 1);
+    ca->ids = _calloc(sizeof(ep_node_id_t) * size, 1);
     if (ca->ids == NULL) {
         _free(ca);
         return RET_ERROR;
     }
 
-    ca->names = _calloc(sizeof(node_name_t) * size, 1);
+    ca->names = _calloc(sizeof(ep_node_name_t) * size, 1);
     if (ca->names == NULL) {
         _free(ca->ids);
         _free(ca);
@@ -34,10 +34,10 @@ cache_create(size_t size, cache_t **cache)
 }
 
 void
-cache_destroy(cache_t **cache)
+ep_cache_destroy(ep_cache_t **cache)
 {
-    cache_t        *ca = *cache;
     uint32_t        i;
+    ep_cache_t     *ca = *cache;
 
 	if (*cache == NULL) {
 		return;
@@ -61,7 +61,7 @@ cache_destroy(cache_t **cache)
 }
 
 int
-cache_insert(node_t *node, cache_t *cache)
+ep_cache_insert(ep_node_t *node, ep_cache_t *cache)
 {
     if (cache->used >= cache->size) {
         return RET_ERROR;
@@ -81,34 +81,34 @@ cache_insert(node_t *node, cache_t *cache)
 static int
 sort_compare_id(const void *a, const void *b)
 {
-    return (int) (((node_id_t *) a)->id - ((node_id_t *) b)->id);
+    return (int) (((ep_node_id_t *) a)->id - ((ep_node_id_t *) b)->id);
 }
 
 static int
 sort_compare_type(const void *a, const void *b)
 {
-    return (int) (((node_name_t *) a)->name - ((node_name_t *) b)->name);
+    return (int) (((ep_node_name_t *) a)->name - ((ep_node_name_t *) b)->name);
 }
 
 void
-cache_sort(cache_t *cache)
+ep_cache_sort(ep_cache_t *cache)
 {
-    qsort(cache->ids, cache->size, sizeof(node_id_t), sort_compare_id);
-    qsort(cache->names, cache->size, sizeof(node_name_t), sort_compare_type);
+    qsort(cache->ids, cache->size, sizeof(ep_node_id_t), sort_compare_id);
+    qsort(cache->names, cache->size, sizeof(ep_node_name_t), sort_compare_type);
 }
 
 static int
 search_compare_id(const void *a, const void *b)
 {
-    return (int) (*((uint32_t *) a) - ((node_id_t *) b)->id);
+    return (int) (*((uint32_t *) a) - ((ep_node_id_t *) b)->id);
 }
 
-node_t *
-get_node_by_id(uint32_t id, cache_t *cache)
+ep_node_t *
+get_node_by_id(uint32_t id, ep_cache_t *cache)
 {
-    node_id_t      *i_node;
+    ep_node_id_t   *i_node;
 
-    i_node = bsearch(&id, cache->ids, cache->size, sizeof(node_id_t), search_compare_id);
+    i_node = bsearch(&id, cache->ids, cache->size, sizeof(ep_node_id_t), search_compare_id);
     if (i_node == NULL) {
         return NULL;
     }
@@ -119,15 +119,15 @@ get_node_by_id(uint32_t id, cache_t *cache)
 static int
 search_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((node_name_t *) b)->name);
+    return (int) (*((ERL_NIF_TERM *) a) - ((ep_node_name_t *) b)->name);
 }
 
-node_t *
-get_node_by_name(ERL_NIF_TERM name, cache_t *cache)
+ep_node_t *
+get_node_by_name(ERL_NIF_TERM name, ep_cache_t *cache)
 {
-    node_name_t    *n_node;
+    ep_node_name_t *n_node;
 
-    n_node = bsearch(&name, cache->names, cache->size, sizeof(node_name_t), search_compare_name);
+    n_node = bsearch(&name, cache->names, cache->size, sizeof(ep_node_name_t), search_compare_name);
     if (n_node == NULL) {
         return NULL;
     }

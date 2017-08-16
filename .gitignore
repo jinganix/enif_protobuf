@@ -1,8 +1,8 @@
-.idea/*
-.rebar/*
-deps/*
-ebin/*
-log/*
+.idea
+.rebar
+deps
+ebin
+log
 *.d
 *.o
 *.so

@@ -27,10 +27,10 @@ static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 {
     char            buf[16];
-    enc_t          *enc;
+    ep_enc_t       *enc;
     uint32_t        lock_n, i;
-    stack_t        *stack;
-    state_t        *state;
+    ep_stack_t     *stack;
+    ep_state_t     *state;
     ErlNifBinary    bin;
 
     if (*priv == NULL) {
@@ -39,7 +39,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
             return RET_ERROR;
         }
 
-        state = _calloc(sizeof(state_t), 1);
+        state = _calloc(sizeof(ep_state_t), 1);
         if (state == NULL) {
             return RET_ERROR;
         }
@@ -49,7 +49,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         /*
          * init state->tdata
          */
-        state->tdata = _calloc(sizeof(tdata_t), state->lock_n);
+        state->tdata = _calloc(sizeof(ep_tdata_t), state->lock_n);
 
         if (state->tdata == NULL) {
             return RET_ERROR;
@@ -59,7 +59,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 
             stack = &(state->tdata[i].stack);
             stack->size = STACK_INIT_SIZE;
-            stack->spots = _calloc(sizeof(spot_t), stack->size);
+            stack->spots = _calloc(sizeof(ep_spot_t), stack->size);
             if (stack->spots == NULL) {
                 return RET_ERROR;
             }
@@ -73,7 +73,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         /*
          * init state->locks
          */
-        state->locks = _calloc(sizeof(lock_t), state->lock_n);
+        state->locks = _calloc(sizeof(ep_lock_t), state->lock_n);
         if (state->locks == NULL) {
             return RET_ERROR;
         }
@@ -145,7 +145,6 @@ reload(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 static int
 upgrade(ErlNifEnv *env, void **priv, void **old_priv, ERL_NIF_TERM info)
 {
-
     *priv = *old_priv;
     return load(env, priv, info);
 }
@@ -155,25 +154,25 @@ unload(ErlNifEnv *env, void *priv)
 {
 #if 0
     if (priv != NULL) {
-        state = (state_t *) enif_priv_data(env);
+        state = (ep_state_t *) enif_priv_data(env);
         _free(state->stack.mem);
-        cache_destroy(&(state->cache));
+        ep_cache_destroy(&(state->cache));
         _free(state);
     }
-#endif
     return;
+#endif
 }
 
 static ERL_NIF_TERM
 load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     char            buf[16];
-    spot_t         *spot;
-    node_t         *node;
-    cache_t        *cache, *old_cache;
-    stack_t        *stack;
+    ep_spot_t      *spot;
+    ep_node_t      *node;
+    ep_cache_t     *cache, *old_cache;
+    ep_stack_t     *stack;
     int32_t         arity;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     uint32_t        i, len = 0, proto_v = 2, max_fields = 0;
     ERL_NIF_TERM    term, head, tail, ret, syn_list = 0;
     ERL_NIF_TERM   *array;
@@ -229,7 +228,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         return_error(env, argv[0]);
     }
 
-    if (cache_create(len, &(cache)) != RET_OK) {
+    if (ep_cache_create(len, &cache) != RET_OK) {
         return_exception(env, argv[0]);
     }
 
@@ -237,7 +236,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     while (enif_get_list_cell(env, term, &head, &tail)) {
 
         if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
-            cache_destroy(&cache);
+            ep_cache_destroy(&cache);
             return_error(env, head);
         }
 
@@ -250,7 +249,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             if (node != NULL) {
                 free_node(node);
             }
-            cache_destroy(&cache);
+            ep_cache_destroy(&cache);
             return_error(env, ret);
         }
 
@@ -258,13 +257,13 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             max_fields = max_fields >= node->size ? max_fields : node->size;
         }
 
-        cache_insert(node, cache);
+        ep_cache_insert(node, cache);
         term = tail;
     }
-    cache_sort(cache);
+    ep_cache_sort(cache);
 
     if ((ret = prelink_nodes(env, cache)) != RET_OK) {
-        cache_destroy(&cache);
+        ep_cache_destroy(&cache);
         return_error(env, ret);
     }
 
@@ -302,7 +301,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     if (old_cache != NULL) {
-        cache_destroy(&old_cache);
+        ep_cache_destroy(&old_cache);
     }
 
     return state->atom_ok;
@@ -311,14 +310,14 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
 
     if(argc != 0) {
         return enif_make_badarg(env);
     }
 
     if (state->cache != NULL) {
-        cache_destroy(&(state->cache));
+        ep_cache_destroy(&(state->cache));
     }
 
     return state->atom_ok;
@@ -327,21 +326,21 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static int
 search_compare_lock(const void *a, const void *b)
 {
-    return (int) ((size_t) *((ErlNifTid *) a) - (size_t) ((lock_t *) b)->tid);
+    return (int) ((size_t) *((ErlNifTid *) a) - (size_t) ((ep_lock_t *) b)->tid);
 }
 
 static int
 sort_compare_lock(const void *a, const void *b)
 {
-    return (int) ((size_t) ((lock_t *) a)->tid - (size_t) ((lock_t *) b)->tid);
+    return (int) ((size_t) ((ep_lock_t *) a)->tid - (size_t) ((ep_lock_t *) b)->tid);
 }
 
 static ERL_NIF_TERM
 encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    lock_t         *lock;
-    tdata_t        *tdata;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_lock_t      *lock;
+    ep_tdata_t     *tdata;
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     ErlNifTid       tid;
     ERL_NIF_TERM    ret;
 
@@ -357,12 +356,12 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     if (state->lock_used < state->lock_n) {
 
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(lock_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
             lock = &state->locks[(state->lock_used)++];
             lock->tid = tid;
             tdata = lock->tdata;
-            qsort(state->locks, state->lock_used, sizeof(lock_t), sort_compare_lock);
+            qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
 
         } else {
 
@@ -371,7 +370,7 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     } else {
 
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(node_id_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_node_id_t), search_compare_lock);
         if (lock == NULL) {
             return_error(env, make_atom(env, "tid_not_found"));
         }
@@ -396,10 +395,10 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    node_t         *node;
-    lock_t         *lock;
-    tdata_t        *tdata;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_node_t      *node;
+    ep_lock_t      *lock;
+    ep_tdata_t     *tdata;
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     ErlNifTid       tid;
     ERL_NIF_TERM    ret;
 
@@ -415,12 +414,12 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     if (state->lock_used < state->lock_n) {
 
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(lock_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
             lock = &state->locks[(state->lock_used)++];
             lock->tid = tid;
             tdata = lock->tdata;
-            qsort(state->locks, state->lock_used, sizeof(lock_t), sort_compare_lock);
+            qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
 
         } else {
 
@@ -429,7 +428,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     } else {
 
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(node_id_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_node_id_t), search_compare_lock);
         if (lock == NULL) {
             return_error(env, make_atom(env, "tid_not_found"));
         }
@@ -458,7 +457,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
     ERL_NIF_TERM    head, tail, *array;
 

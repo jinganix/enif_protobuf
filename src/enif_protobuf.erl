@@ -29,7 +29,7 @@ init() ->
         Path ->
             Path
     end,
-    Processors = erlang:system_info(logical_processors_available),
+    Processors = erlang:system_info(logical_processors),
     ok = erlang:load_nif(filename:join(PrivDir, "enif_protobuf"), Processors).
 
 not_loaded(Line) ->

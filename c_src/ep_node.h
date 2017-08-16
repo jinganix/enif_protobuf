@@ -2,22 +2,22 @@
  * Copyright (c) jg_513@163.com, https://github.com/jg513
  */
 
-#ifndef EP_NODE_H_INCLUDED
-#define EP_NODE_H_INCLUDED
+#ifndef __EP_NODE_H__
+#define __EP_NODE_H__
 
 #include "enif_protobuf.h"
 
-struct enum_field_s {
+struct ep_enum_field_s {
     ERL_NIF_TERM    name;
     int32_t         value;
     uint32_t        proto_v;
 };
 
-struct field_s {
+struct ep_field_s {
     ERL_NIF_TERM        name;
     occurrence_type_e   o_type;
     field_type_e        type;
-    node_t             *sub_node;
+    ep_node_t          *sub_node;
     ERL_NIF_TERM        sub_name;
     ERL_NIF_TERM        defaut_value;
     uint32_t            id;
@@ -28,12 +28,12 @@ struct field_s {
     uint32_t            packed;
 };
 
-struct fnum_field_s {
+struct ep_fnum_field_s {
     uint32_t        fnum;
-    field_t        *field;
+    ep_field_t     *field;
 };
 
-struct node_s {
+struct ep_node_s {
     node_type_e     n_type;
     ERL_NIF_TERM    name;
     uint32_t        id;
@@ -44,30 +44,30 @@ struct node_s {
     void           *v_fields;
 };
 
-struct node_id_s {
+struct ep_node_id_s {
     uint32_t        id;
-    node_t         *node;
+    ep_node_t      *node;
 };
 
-struct node_name_s {
+struct ep_node_name_s {
     ERL_NIF_TERM    name;
-    node_t         *node;
+    ep_node_t      *node;
 };
 
 void
-free_node(node_t *node);
+free_node(ep_node_t *node);
 
 ERL_NIF_TERM
-parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list);
+parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list);
 
 ERL_NIF_TERM
-prelink_nodes(ErlNifEnv *env, cache_t *cache);
+prelink_nodes(ErlNifEnv *env, ep_cache_t *cache);
 
 void
-stack_ensure_all(ErlNifEnv *env, cache_t *cache);
+stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache);
 
 ERL_NIF_TERM
-stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot);
+stack_ensure(ErlNifEnv *env, ep_stack_t *stack, ep_spot_t **spot);
 
 int
 get_field_compare_name(const void *a, const void *b);

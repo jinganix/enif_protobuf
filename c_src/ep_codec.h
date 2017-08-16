@@ -2,8 +2,8 @@
  * Copyright (c) jg_513@163.com, https://github.com/jg513
  */
 
-#ifndef ENIF_PROTO_CODEC_H_INCLUDED
-#define ENIF_PROTO_CODEC_H_INCLUDED
+#ifndef __EP_CODEC_H__
+#define __EP_CODEC_H__
 
 #include "enif_protobuf.h"
 
@@ -84,12 +84,12 @@ swap_uint64(uint64_t value)
  * encode
  */
 ERL_NIF_TERM
-encode(ErlNifEnv *env, ERL_NIF_TERM term, tdata_t *tdata);
+encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata);
 
 /*
  * decode
  */
 ERL_NIF_TERM
-decode(ErlNifEnv *env, tdata_t *tdata, node_t *node);
+decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node);
 
 #endif

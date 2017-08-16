@@ -10,30 +10,30 @@
 #define A_PACKED        "packed"
 
 ERL_NIF_TERM
-fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field);
+fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
 
 static int
 sort_compare_name_field(const void *a, const void *b)
 {
-    return (int) (((field_t *) a)->name - ((field_t *) b)->name);
+    return (int) (((ep_field_t *) a)->name - ((ep_field_t *) b)->name);
 }
 
 static int
 sort_compare_msg_field(const void *a, const void *b)
 {
-    return (int) (((field_t *) a)->rnum - ((field_t *) b)->rnum);
+    return (int) (((ep_field_t *) a)->rnum - ((ep_field_t *) b)->rnum);
 }
 
 static int
 sort_compare_fnum_field(const void *a, const void *b)
 {
-    return (int) (((fnum_field_t *) a)->fnum - ((fnum_field_t *) b)->fnum);
+    return (int) (((ep_fnum_field_t *) a)->fnum - ((ep_fnum_field_t *) b)->fnum);
 }
 
-node_t *
+ep_node_t *
 make_node(int fields_n, node_type_e n_type)
 {
-    node_t     *node = _calloc(sizeof(node_t), 1);
+    ep_node_t      *node = _calloc(sizeof(ep_node_t), 1);
 
     if (node == NULL) {
         return NULL;
@@ -42,22 +42,22 @@ make_node(int fields_n, node_type_e n_type)
     if (fields_n > 0) {
 
         if (n_type == node_msg || n_type == node_oneof) {
-            node->fields = _calloc(sizeof(field_t), fields_n);
+            node->fields = _calloc(sizeof(ep_field_t), fields_n);
             if (node->fields == NULL) {
                 free_node(node);
                 return NULL;
             }
 
         } else if (n_type == node_map) {
-            node->fields = _calloc(sizeof(field_t), fields_n);
+            node->fields = _calloc(sizeof(ep_field_t), fields_n);
             if (node->fields == NULL) {
                 free_node(node);
                 return NULL;
             }
 
         } else if (n_type == node_enum) {
-            node->fields = _calloc(sizeof(enum_field_t), fields_n);
-            node->v_fields = _calloc(sizeof(enum_field_t), fields_n);
+            node->fields = _calloc(sizeof(ep_enum_field_t), fields_n);
+            node->v_fields = _calloc(sizeof(ep_enum_field_t), fields_n);
             if (node->fields == NULL || node->v_fields == NULL) {
                 free_node(node);
                 return NULL;
@@ -69,17 +69,17 @@ make_node(int fields_n, node_type_e n_type)
 }
 
 void
-free_node(node_t *node)
+free_node(ep_node_t *node)
 {
     size_t          i;
-    field_t        *field;
+    ep_field_t     *field;
 
     if (node->fields != NULL) {
 
         for (i = 0; i < node->size; i++) {
             if (node->n_type == node_msg) {
 
-                field = &(((field_t *) node->fields)[i]);
+                field = &(((ep_field_t *) node->fields)[i]);
                 if (field->type == field_map || field->type == field_oneof) {
                     if (field->sub_node != NULL) {
                         free_node(field->sub_node);
@@ -104,23 +104,23 @@ free_node(node_t *node)
 static int
 sort_compare_enum_field(const void *a, const void *b)
 {
-    return (int) (((enum_field_t *) a)->name - ((enum_field_t *) b)->name);
+    return (int) (((ep_enum_field_t *) a)->name - ((ep_enum_field_t *) b)->name);
 }
 
 static int
 sort_compare_enum_v_field(const void *a, const void *b)
 {
-    return (int) (((enum_field_t *) a)->value - ((enum_field_t *) b)->value);
+    return (int) (((ep_enum_field_t *) a)->value - ((ep_enum_field_t *) b)->value);
 }
 
 ERL_NIF_TERM
-parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
+parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
-    int32_t         arity, allow_alias = 0,value;
-    enum_field_t   *field, *v_field, *vf;
-    ERL_NIF_TERM   *array;
-    ERL_NIF_TERM    head, tail, tmp;
+    int32_t             arity, allow_alias = 0,value;
+    ep_state_t         *state = (ep_state_t *) enif_priv_data(env);
+    ERL_NIF_TERM       *array;
+    ERL_NIF_TERM        head, tail, tmp;
+    ep_enum_field_t    *field, *v_field, *vf;
 
     tmp = term;
     while (enif_get_list_cell(env, tmp, &head, &tail)) {
@@ -198,10 +198,10 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(enum_field_t), sort_compare_enum_field);
+    qsort(node->fields, node->size, sizeof(ep_enum_field_t), sort_compare_enum_field);
 
-    node->v_size = (uint32_t) (v_field - (enum_field_t *) node->v_fields);
-    qsort(node->v_fields, node->v_size, sizeof(enum_field_t), sort_compare_enum_v_field);
+    node->v_size = (uint32_t) (v_field - (ep_enum_field_t *) node->v_fields);
+    qsort(node->v_fields, node->v_size, sizeof(ep_enum_field_t), sort_compare_enum_v_field);
 
     return RET_OK;
 }
@@ -210,10 +210,10 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
  * msg
  */
 ERL_NIF_TERM
-parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
     int32_t         arity;
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     ERL_NIF_TERM   *array;
 
     if (term == state->atom_int32)          { field->type = field_int32; return RET_OK; }
@@ -250,11 +250,11 @@ parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
-    field_t        *f;
+    ep_field_t        *f;
     ERL_NIF_TERM   *array;
 
     if (!enif_get_tuple(env, term, &arity, to_const(array))) {
@@ -305,7 +305,7 @@ parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_field_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+parse_field_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
     if (parse_field_basic(env, term, field) == RET_OK) {
         return RET_OK;
@@ -319,9 +319,9 @@ parse_field_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
 
     if (term == state->atom_required)       { field->o_type = occurrence_required; return RET_OK; }
     else if (term == state->atom_optional)  { field->o_type = occurrence_optional; return RET_OK; }
@@ -331,7 +331,7 @@ parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
     int32_t         arity;
     ERL_NIF_TERM   *array;
@@ -357,11 +357,11 @@ parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
+parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 {
-    field_t        *field;
+    ep_field_t        *field;
     int32_t         arity;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
     ERL_NIF_TERM    head, tail, ret;
     ERL_NIF_TERM   *array;
 
@@ -387,13 +387,13 @@ parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(field_t), sort_compare_name_field);
+    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_name_field);
 
     return RET_OK;
 }
 
 ERL_NIF_TERM
-fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
     int32_t         arity;
     uint32_t        len;
@@ -423,15 +423,15 @@ fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
     field->sub_node->n_type = node_oneof;
     field->sub_node->size = len;
     check_ret(ret, parse_oneof_fields(env, array[3], field->sub_node));
-    field->fnum = ((field_t *) (field->sub_node->fields))->fnum;
+    field->fnum = ((ep_field_t *) (field->sub_node->fields))->fnum;
 
     return RET_OK;
 }
 
 ERL_NIF_TERM
-fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
+fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
     ERL_NIF_TERM   *array;
 
@@ -470,13 +470,13 @@ fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, field_t *field)
 }
 
 ERL_NIF_TERM
-parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
+parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 {
-    field_t        *field, *f;
+    ep_field_t        *field, *f;
     int32_t         arity;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
     uint32_t		i, j;
-    fnum_field_t   *ff;
+    ep_fnum_field_t   *ff;
     ERL_NIF_TERM    head, tail, ret;
     ERL_NIF_TERM   *array;
 
@@ -505,11 +505,11 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(field_t), sort_compare_msg_field);
+    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_msg_field);
 
     if (node->v_size > 0) {
 
-        node->v_fields = _calloc(sizeof(fnum_field_t), node->v_size);
+        node->v_fields = _calloc(sizeof(ep_fnum_field_t), node->v_size);
         ff = node->v_fields;
         field = node->fields;
 
@@ -540,16 +540,16 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, node_t *node)
             ff++;
         }
 
-        qsort(node->v_fields, node->v_size, sizeof(fnum_field_t), sort_compare_fnum_field);
+        qsort(node->v_fields, node->v_size, sizeof(ep_fnum_field_t), sort_compare_fnum_field);
     }
 
     return RET_OK;
 }
 
 ERL_NIF_TERM
-parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list)
+parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list)
 {
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity, msg_arity;
     uint32_t        len;
     node_type_e     n_type;
@@ -614,13 +614,13 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, node_t **node, uint32_t proto_v, E
 }
 
 ERL_NIF_TERM
-prelink_nodes(ErlNifEnv *env, cache_t *cache)
+prelink_nodes(ErlNifEnv *env, ep_cache_t *cache)
 {
     size_t          i;
-    node_t         *node;
-    field_t        *f;
+    ep_node_t         *node;
+    ep_field_t        *f;
     uint32_t		j;
-    fnum_field_t   *ff;
+    ep_fnum_field_t   *ff;
 
     for (i = 0; i < cache->size; i++) {
 
@@ -629,7 +629,7 @@ prelink_nodes(ErlNifEnv *env, cache_t *cache)
 
             for (j = 0; j < node->size; j++) {
 
-                f = (field_t *) (node->fields) + j;
+                f = (ep_field_t *) (node->fields) + j;
                 if (f->type == field_msg || f->type == field_enum) {
                     f->sub_node = get_node_by_name(f->sub_name, cache);
 
@@ -639,7 +639,7 @@ prelink_nodes(ErlNifEnv *env, cache_t *cache)
                 }
             }
 
-            ff = (fnum_field_t *) (node->v_fields);
+            ff = (ep_fnum_field_t *) (node->v_fields);
             for (j = 0; j < node->v_size; j++) {
 
                 f = ff->field;
@@ -659,22 +659,22 @@ prelink_nodes(ErlNifEnv *env, cache_t *cache)
 }
 
 ERL_NIF_TERM
-stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot)
+stack_ensure(ErlNifEnv *env, ep_stack_t *stack, ep_spot_t **spot)
 {
-    spot_t         *spots;
+    ep_spot_t         *spots;
     size_t          size;
 
     if ((*spot) >= stack->end) {
 
         size = stack->size * 2;
-        spots = _realloc(stack->spots, sizeof(spot_t) * size);
+        spots = _realloc(stack->spots, sizeof(ep_spot_t) * size);
         if (spots == NULL) {
             return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
         }
 
         *spot = spots + (*spot - stack->spots);
 
-        memset(spots + stack->size, 0x00, sizeof(spot_t) * (size - stack->size));
+        memset(spots + stack->size, 0x00, sizeof(ep_spot_t) * (size - stack->size));
         stack->spots = spots;
         stack->size = size;
         stack->end = stack->spots + stack->size;
@@ -684,20 +684,20 @@ stack_ensure(ErlNifEnv *env, stack_t *stack, spot_t **spot)
 }
 
 ERL_NIF_TERM
-stack_ensure_size(ErlNifEnv *env, stack_t *stack, size_t size)
+stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size)
 {
-    spot_t         *spots;
+    ep_spot_t         *spots;
 
     if (stack->size >= size) {
         return RET_OK;
     }
 
-    spots = _realloc(stack->spots, sizeof(spot_t) * size);
+    spots = _realloc(stack->spots, sizeof(ep_spot_t) * size);
     if (spots == NULL) {
         return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
     }
 
-    memset(spots + stack->size, 0x00, sizeof(spot_t) * (size - stack->size));
+    memset(spots + stack->size, 0x00, sizeof(ep_spot_t) * (size - stack->size));
     stack->spots = spots;
     stack->size = size;
     stack->end = stack->spots + stack->size;
@@ -706,13 +706,13 @@ stack_ensure_size(ErlNifEnv *env, stack_t *stack, size_t size)
 }
 
 void
-stack_ensure_all(ErlNifEnv *env, cache_t *cache)
+stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
 {
     size_t          i, j, stack_size;
-    spot_t         *spot;
-    field_t        *field;
-    stack_t        *stack;
-    state_t        *state = (state_t *) enif_priv_data(env);
+    ep_spot_t         *spot;
+    ep_field_t        *field;
+    ep_stack_t        *stack;
+    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
 
     stack = &(state->tdata[0].stack);
 
@@ -738,7 +738,7 @@ stack_ensure_all(ErlNifEnv *env, cache_t *cache)
                 for (j = spot->pos; j < (size_t) (spot->node->size); j++) {
 
                     spot->pos = j + 1;
-                    field = ((field_t *) (spot->node->fields)) + j;
+                    field = ((ep_field_t *) (spot->node->fields)) + j;
                     if (field->o_type == occurrence_repeated) {
 
                         if (field->type == field_msg || field->type == field_map) {
@@ -795,29 +795,29 @@ stack_ensure_all(ErlNifEnv *env, cache_t *cache)
 int
 get_field_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((field_t *) b)->name);
+    return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->name);
 }
 
 int
 get_map_field_compare_fnum(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((field_t *) b)->fnum);
+    return (int) (*((int32_t *) a) - ((ep_field_t *) b)->fnum);
 }
 
 int
 get_field_compare_fnum(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((fnum_field_t *) b)->fnum);
+    return (int) (*((int32_t *) a) - ((ep_fnum_field_t *) b)->fnum);
 }
 
 int
 get_enum_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((enum_field_t *) b)->name);
+    return (int) (*((ERL_NIF_TERM *) a) - ((ep_enum_field_t *) b)->name);
 }
 
 int
 get_enum_compare_value(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((enum_field_t *) b)->value);
+    return (int) (*((int32_t *) a) - ((ep_enum_field_t *) b)->value);
 }

@@ -2,8 +2,8 @@
  * Copyright (c) jg_513@163.com, https://github.com/jg513
  */
 
-#ifndef ENIF_PROTO_H_INCLUDED
-#define ENIF_PROTO_H_INCLUDED
+#ifndef __EPB_H__
+#define __EPB_H__
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +14,7 @@
 
 #include "erl_nif.h"
 
+#define IS_DEBUG    0
 #define USE_OS_MEM  0
 #define DEBUG_MEM   0
 
@@ -23,7 +24,7 @@
 #define TRUE        1
 #define FALSE       0
 
-#define ENC_INIT_SIZE       1024 * 1024
+#define ENC_INIT_SIZE       (1024 * 1024)
 #define STACK_INIT_SIZE     2
 #define ARRAY_INIT_SIZE     32
 
@@ -39,22 +40,22 @@
 #define sprintf_s(p, s, fmt, ...) sprintf(p, fmt, __VA_ARGS__)
 #endif
 
-#if 1
-#define debug_step() printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__)
-
+#if IS_DEBUG
 #define debug_out(fmt) do { \
     fprintf(stderr, "%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__); \
 } while (0)
 
+#define debug_step() printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__)
+
 #define debug(fmt, ...) do { \
     fprintf(stderr, "%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__, __VA_ARGS__); \
 } while (0)
-
 #else
 #define debug_step() do {} while(0)
 #define debug(fmt, ...) do {} while(0)
 #endif
 
+#if IS_DEBUG
 #define return_exception(env, term) do {    \
         printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__); \
         return enif_raise_exception(env, term);    \
@@ -62,31 +63,36 @@
 
 #define return_error(env, term) do {    \
         printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__); \
-        return enif_make_tuple2(env, ((state_t *) enif_priv_data(env))->atom_error, term);    \
+        return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term);    \
 } while(0)
+#else
+#define return_exception(env, term) return enif_raise_exception(env, term)
+
+#define return_error(env, term) return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term)
+#endif
 
 #define check_ret(ret, func) do {               \
-    if ((ret = (func)) != RET_OK) {             \
+    if (((ret) = (func)) != RET_OK) {             \
         debug("ret %lu", (unsigned long) ret);  \
         return ret;                             \
     }                                           \
 } while(0)
 
-typedef struct enum_field_s enum_field_t;
-typedef struct field_s field_t;
-typedef struct fnum_field_s fnum_field_t;
-typedef struct node_id_s node_id_t;
-typedef struct node_name_s node_name_t;
-typedef struct msg_s msg_t;
-typedef struct enum_s enum_t;
-typedef struct node_s node_t;
+typedef struct ep_enum_field_s ep_enum_field_t;
+typedef struct ep_field_s ep_field_t;
+typedef struct ep_fnum_field_s ep_fnum_field_t;
+typedef struct ep_node_id_s ep_node_id_t;
+typedef struct ep_node_name_s ep_node_name_t;
+typedef struct ep_msg_s ep_msg_t;
+typedef struct ep_enum_s ep_enum_t;
+typedef struct ep_node_s ep_node_t;
 
-typedef struct state_s state_t;
-typedef struct cache_s cache_t;
-typedef struct enc_s enc_t;
-typedef struct dec_s dec_t;
-typedef struct spot_s spot_t;
-typedef struct stack_s stack_t;
+typedef struct ep_state_s ep_state_t;
+typedef struct ep_cache_s ep_cache_t;
+typedef struct ep_enc_s ep_enc_t;
+typedef struct ep_dec_s ep_dec_t;
+typedef struct ep_spot_s ep_spot_t;
+typedef struct ep_stack_s ep_stack_t;
 
 typedef enum {
     //field_unknown = INT_MIN,
@@ -127,13 +133,13 @@ typedef enum {
     node_map
 } node_type_e;
 
-struct stack_s {
-    spot_t         *end;
-    spot_t         *spots;
+struct ep_stack_s {
+    ep_spot_t      *end;
+    ep_spot_t      *spots;
     size_t          size;
 };
 
-struct enc_s {
+struct ep_enc_s {
     char           *tmp;
     char           *p;
     char           *sentinel;
@@ -144,7 +150,7 @@ struct enc_s {
     uint32_t        omit;
 };
 
-struct dec_s {
+struct ep_dec_s {
     char           *p;
     char           *sentinel;
     char           *end;
@@ -153,15 +159,15 @@ struct dec_s {
     ERL_NIF_TERM    result;
 };
 
-struct spot_s {
+struct ep_spot_s {
     int32_t         type;
 
     int8_t          need_length;
     size_t          sentinel_size;
 
     size_t          pos;
-    node_t         *node;
-    field_t        *field;
+    ep_node_t      *node;
+    ep_field_t     *field;
 
     ERL_NIF_TERM   *array;  // is_tuple
     ERL_NIF_TERM    list;   // is_list
@@ -173,26 +179,26 @@ struct spot_s {
     char           *end_sentinel;
 };
 
-typedef struct tdata_s {
+typedef struct ep_tdata_s {
     ErlNifMutex    *mutex;
-    stack_t         stack;
-    enc_t           enc;
-    dec_t           dec;
-} tdata_t;
+    ep_stack_t      stack;
+    ep_enc_t        enc;
+    ep_dec_t        dec;
+} ep_tdata_t;
 
-typedef struct lock_s {
+typedef struct ep_lock_s {
     ErlNifTid       tid;
-    tdata_t        *tdata;
-} lock_t;
+    ep_tdata_t     *tdata;
+} ep_lock_t;
 
-struct state_s {
-    cache_t        *cache;
+struct ep_state_s {
+    ep_cache_t     *cache;
 
     uint32_t        lock_n;
     uint32_t        lock_used;
-    lock_t         *lock_end;
-    lock_t         *locks;
-    tdata_t        *tdata;
+    ep_lock_t      *lock_end;
+    ep_lock_t      *locks;
+    ep_tdata_t     *tdata;
 
     struct opts_s {
         uint32_t    with_utf8;
