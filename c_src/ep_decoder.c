@@ -143,7 +143,7 @@ unpack_uint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
         val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_ulong(env, (unsigned long) val);
+            *term = enif_make_ulong(env, (ErlNifUInt64) val);
             return RET_OK;
         }
         shift += 7;
@@ -172,7 +172,7 @@ unpack_sint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
                 v = val >> 1;
             }
 
-            *term = enif_make_long(env, (long) v);
+            *term = enif_make_long(env, (ErlNifSInt64) v);
             return RET_OK;
         }
         shift += 7;
@@ -193,7 +193,7 @@ unpack_int64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
         val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_long(env, (long) val);
+            *term = enif_make_long(env, (ErlNifSInt64) val);
             return RET_OK;
         }
         shift += 7;
@@ -211,7 +211,7 @@ unpack_fixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
     if (dec->p + sizeof(uint64_t) <= dec->end) {
 
         val = *(uint64_t *) (dec->p);
-        *term = enif_make_ulong(env, (unsigned long) val);
+        *term = enif_make_ulong(env, (ErlNifUInt64) val);
         dec->p += sizeof(uint64_t);
         return RET_OK;
     }
@@ -227,7 +227,7 @@ unpack_sfixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
     if (dec->p + sizeof(int64_t) <= dec->end) {
 
         val = *(int64_t *) (dec->p);
-        *term = enif_make_long(env, (long) val);
+        *term = enif_make_long(env, (ErlNifSInt64) val);
         dec->p += sizeof(int64_t);
         return RET_OK;
     }

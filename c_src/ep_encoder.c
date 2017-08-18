@@ -199,7 +199,7 @@ do_pack_uint64(ErlNifEnv *env, uint64_t val, ep_enc_t *enc)
 static inline ERL_NIF_TERM
 pack_uint64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 {
-    unsigned long   val;
+    ErlNifUInt64    val;
 
     if (!enif_get_uint64(env, term, &val)) {
         return_error(env, term);
@@ -219,7 +219,7 @@ pack_uint64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 static inline ERL_NIF_TERM
 pack_sint64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 {
-    long    val;
+    ErlNifSInt64    val;
 
     if (!enif_get_int64(env, term, &val)) {
         return_error(env, term);
@@ -246,7 +246,7 @@ pack_sint64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 static inline ERL_NIF_TERM
 pack_int64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 {
-    long    val;
+    ErlNifSInt64    val;
 
     if (!enif_get_int64(env, term, &val)) {
         return_error(env, term);
@@ -266,7 +266,7 @@ pack_int64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 static inline ERL_NIF_TERM
 pack_fixed64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 {
-    long    val;
+    ErlNifSInt64    val;
 
     if (!enif_get_int64(env, term, &val)) {
         return_error(env, term);
@@ -361,8 +361,8 @@ static inline ERL_NIF_TERM
 pack_double(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc)
 {
     double          val;
-    long            l_val;
     ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    ErlNifSInt64    l_val;
 
     if (!enif_get_double(env, term, &val)) {
 
