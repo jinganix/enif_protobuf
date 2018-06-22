@@ -1,14 +1,20 @@
 
 %% Copyright (c) jg_513@163.com, https://github.com/jg513
 
--module(ep_cache_tests).
+-module(ep_tests).
 
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
-load_all_test() ->
+-record('Person', {
+    name :: iolist(),        % = 1
+    id :: integer(),       % = 2, 32 bits
+    email :: iolist() | undefined % = 3
+}).
+
+load_cache_test() ->
     ok = enif_protobuf:load_cache([
         {{msg, m1}, [
             {field, int32, 1, 1, int32, optional, [packed, {default, ok}]},
@@ -51,3 +57,69 @@ load_all_test() ->
             {option, allow_alias, true}
         ]}
     ]).
+
+loading_cache() ->
+    ok = enif_protobuf:load_cache([{{msg, 'Person'}, [
+        #field{name = name, fnum = 1, rnum = 2, type = string, occurrence = required, opts = []},
+        #field{name = id, fnum = 2, rnum = 3, type = int32, occurrence = required, opts = []},
+        #field{name = email, fnum = 3, rnum = 4, type = string, occurrence = optional, opts = []}]}
+    ]).
+
+encoding() ->
+    enif_protobuf:encode(#'Person'{name = "abc def", id = 345, email = "a@example.com"}).
+
+loop_encoding(0) ->
+    encoding(),
+    ok;
+loop_encoding(N) ->
+    case rand:uniform() > 0.99 of
+        true ->
+            loading_cache();
+        _ ->
+            ignore
+    end,
+    encoding(),
+    loop_encoding(N - 1).
+
+smp_cache_encoding_test_() ->
+    rand:uniform(),
+    Processors = erlang:system_info(logical_processors),
+    N = 1000000,
+    {spawn, {timeout, 60, ?_test(begin
+        [spawn(fun() ->
+            loading_cache(),
+            loop_encoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_encoding(N + 1000000)
+    end)}}.
+
+decoding() ->
+    Bin = <<10, 7, 97, 98, 99, 32, 100, 101, 102, 16, 217, 2, 26, 13, 97, 64, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109>>,
+    enif_protobuf:decode(Bin, 'Person').
+
+loop_decoding(0) ->
+    decoding(),
+    ok;
+loop_decoding(N) ->
+    case rand:uniform() > 0.99 of
+        true ->
+            loading_cache();
+        _ ->
+            ignore
+    end,
+    decoding(),
+    loop_encoding(N - 1).
+
+smp_cache_decoding_test_() ->
+    rand:uniform(),
+    Processors = erlang:system_info(logical_processors),
+    N = 1000000,
+    {spawn, {timeout, 60, ?_test(begin
+        [spawn(fun() ->
+            loading_cache(),
+            loop_decoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_decoding(N + 1000000)
+    end)}}.

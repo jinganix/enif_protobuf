@@ -193,7 +193,7 @@ struct ep_state_s {
     ep_cache_t     *cache;
 
     uint32_t        lock_n;
-    uint32_t        lock_used;
+    volatile uint32_t   lock_used;
     ep_lock_t      *locks;
     ep_tdata_t     *tdata;
     ErlNifRWLock   *cache_lock;
