@@ -4,7 +4,6 @@
 
 #ifndef __EPB_H__
 #define __EPB_H__
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -180,7 +179,6 @@ struct ep_spot_s {
 };
 
 typedef struct ep_tdata_s {
-    ErlNifMutex    *mutex;
     ep_stack_t      stack;
     ep_enc_t        enc;
     ep_dec_t        dec;
@@ -196,9 +194,10 @@ struct ep_state_s {
 
     uint32_t        lock_n;
     uint32_t        lock_used;
-    ep_lock_t      *lock_end;
     ep_lock_t      *locks;
     ep_tdata_t     *tdata;
+    ErlNifRWLock   *cache_lock;
+    ErlNifRWLock   *local_lock;
 
     struct opts_s {
         uint32_t    with_utf8;

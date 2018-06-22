@@ -26,7 +26,6 @@ make_atom(ErlNifEnv *env, const char *name)
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 {
-    char            buf[16];
     ep_enc_t       *enc;
     uint32_t        lock_n, i;
     ep_stack_t     *stack;
@@ -34,7 +33,6 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
     ErlNifBinary    bin;
 
     if (*priv == NULL) {
-
         if (!enif_get_uint(env, info, &lock_n)) {
             return RET_ERROR;
         }
@@ -43,14 +41,14 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         if (state == NULL) {
             return RET_ERROR;
         }
-
         state->lock_n = lock_n;
+        state->cache_lock = enif_rwlock_create("CACHE_LOCK");
+        state->local_lock = enif_rwlock_create("LOCAL_LOCK");
 
         /*
          * init state->tdata
          */
         state->tdata = _calloc(sizeof(ep_tdata_t), state->lock_n);
-
         if (state->tdata == NULL) {
             return RET_ERROR;
         }
@@ -77,13 +75,9 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         if (state->locks == NULL) {
             return RET_ERROR;
         }
-        state->lock_end = state->locks + state->lock_n;
 
         for (i = 0; i < state->lock_n; i++) {
-
             state->locks[i].tdata = &(state->tdata[i]);
-            sprintf_s(buf, sizeof(buf), "cache_mutex_%d", i);
-            state->locks[i].tdata->mutex = enif_mutex_create(buf);
         }
 
         state->integer_zero = enif_make_int(env, 0);
@@ -183,23 +177,19 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     term = argv[0];
     while (enif_get_list_cell(env, term, &head, &tail)) {
-
         if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
             return_error(env, head);
         }
 
         if (array[0] == make_atom(env, "syntax")) {
-
             if (!enif_get_string(env, array[1], buf, sizeof(buf), ERL_NIF_LATIN1)) {
                 return_error(env, head);
             }
 
             if (!strncmp(buf, "proto2", sizeof("proto2"))) {
                 proto_v = 2;
-
             } else if (!strncmp(buf, "proto3", sizeof("proto3"))) {
                 proto_v = 3;
-
             } else {
                 return_error(env, head);
             }
@@ -209,10 +199,8 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         }
 
         if (array[0] == make_atom(env, "proto3_msgs")) {
-
             if (enif_is_list(env, array[1])) {
                 syn_list = array[1];
-
             } else {
                 return_error(env, head);
             }
@@ -234,7 +222,6 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     term = argv[0];
     while (enif_get_list_cell(env, term, &head, &tail)) {
-
         if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
             ep_cache_destroy(&cache);
             return_error(env, head);
@@ -267,24 +254,17 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         return_error(env, ret);
     }
 
-    for (i = 0; i < state->lock_n; i++) {
-        enif_mutex_lock(state->tdata[i].mutex);
-    }
+    enif_rwlock_rwlock(state->cache_lock);
 
     stack_ensure_all(env, cache);
-
     for (i = 0; i < state->lock_n; i++) {
-
         stack = &(state->tdata[i].stack);
         spot = stack->spots;
         if (max_fields > spot->t_size) {
-
             while (spot < stack->end) {
-
                 spot->t_size = max_fields + 1;
                 if (spot->t_arr == NULL) {
                     spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
-
                 } else {
                     spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
                 }
@@ -292,13 +272,10 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             }
         }
     }
-
     old_cache = state->cache;
     state->cache = cache;
 
-    for (i = 0; i < state->lock_n; i++) {
-        enif_mutex_unlock(state->tdata[i].mutex);
-    }
+    enif_rwlock_rwunlock(state->cache_lock);
 
     if (old_cache != NULL) {
         ep_cache_destroy(&old_cache);
@@ -354,23 +331,20 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     tid = enif_thread_self();
     if (state->lock_used < state->lock_n) {
-
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
         lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
+            enif_rwlock_rwlock(state->local_lock);
             lock = &state->locks[(state->lock_used)++];
             lock->tid = tid;
             tdata = lock->tdata;
             qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
-
+            enif_rwlock_rwunlock(state->local_lock);
         } else {
-
             tdata = lock->tdata;
         }
-
     } else {
-
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_node_id_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
             return_error(env, make_atom(env, "tid_not_found"));
         }
@@ -381,12 +355,12 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;
 
-    enif_mutex_lock(tdata->mutex);
+    enif_rwlock_rlock(state->cache_lock);
     if ((ret = (encode(env, argv[0], tdata))) != RET_OK) {
-        enif_mutex_unlock(tdata->mutex);
+        enif_rwlock_runlock(state->cache_lock);
         return ret;
     }
-    enif_mutex_unlock(tdata->mutex);
+    enif_rwlock_runlock(state->cache_lock);
     //check_ret(ret, encode(env, argv[0], tdata));
 
     return tdata->enc.result;
@@ -412,23 +386,20 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     tid = enif_thread_self();
     if (state->lock_used < state->lock_n) {
-
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
         lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
+            enif_rwlock_rwlock(state->local_lock);
             lock = &state->locks[(state->lock_used)++];
             lock->tid = tid;
             tdata = lock->tdata;
             qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
-
+            enif_rwlock_rwunlock(state->local_lock);
         } else {
-
             tdata = lock->tdata;
         }
-
     } else {
-
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_node_id_t), search_compare_lock);
+        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         if (lock == NULL) {
             return_error(env, make_atom(env, "tid_not_found"));
         }
@@ -450,7 +421,6 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     check_ret(ret, decode(env, tdata, node));
-
     return tdata->dec.result;
 }
 
@@ -467,37 +437,26 @@ set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     head = argv[0];
     while (enif_get_list_cell(env, head, &head, &tail)) {
-
         if (enif_get_tuple(env, head, &arity, to_const(array)) && arity == 2) {
-
             if (array[0] == make_atom(env, "with_utf8")) {
-
                 if (array[1] == state->atom_true) {
                     state->opts.with_utf8 = 1;
-
                 } else if (array[1] == state->atom_false) {
                     state->opts.with_utf8 = 0;
-
                 } else {
                     return enif_make_badarg(env);
                 }
-
-            } else  if (array[0] == make_atom(env, "string_as_list")) {
-
+            } else if (array[0] == make_atom(env, "string_as_list")) {
                 if (array[1] == state->atom_true) {
                     state->opts.string_as_list = 1;
-
                 } else if (array[1] == state->atom_false) {
                     state->opts.string_as_list = 0;
-
                 } else {
                     return enif_make_badarg(env);
                 }
-
             } else {
                 return enif_make_badarg(env);
             }
-
         } else {
             return enif_make_badarg(env);
         }
