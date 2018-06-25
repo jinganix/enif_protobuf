@@ -84,7 +84,7 @@ loop_encoding(N) ->
 smp_cache_encoding_test_() ->
     rand:uniform(),
     Processors = erlang:system_info(logical_processors),
-    N = 1000000,
+    N = 500000,
     {spawn, {timeout, 60, ?_test(begin
         [spawn(fun() ->
             loading_cache(),
@@ -114,7 +114,7 @@ loop_decoding(N) ->
 smp_cache_decoding_test_() ->
     rand:uniform(),
     Processors = erlang:system_info(logical_processors),
-    N = 1000000,
+    N = 500000,
     {spawn, {timeout, 60, ?_test(begin
         [spawn(fun() ->
             loading_cache(),

@@ -13,3 +13,4 @@ otp_src_18.3
 .settings
 .eunit
 benchmarks/tmp
+cmake-build-debug

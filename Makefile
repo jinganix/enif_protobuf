@@ -22,8 +22,6 @@ distclean: clean
 build:
 	$(REBAR) compile
 
-test: eunit
-
 ct:
 	./scripts/generate_emakefile.escript
 	@$(REBAR) skip_deps=true ct

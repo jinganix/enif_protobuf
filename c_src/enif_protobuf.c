@@ -332,13 +332,16 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tid = enif_thread_self();
     if (state->lock_used < state->lock_n) {
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
+        enif_rwlock_rlock(state->local_lock);
         lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
+        enif_rwlock_runlock(state->local_lock);
         if (lock == NULL) {
             enif_rwlock_rwlock(state->local_lock);
-            lock = &state->locks[(state->lock_used)++];
+            lock = &state->locks[state->lock_used];
             lock->tid = tid;
             tdata = lock->tdata;
-            qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
+            qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
+            (state->lock_used)++;
             enif_rwlock_rwunlock(state->local_lock);
         } else {
             tdata = lock->tdata;
@@ -387,13 +390,16 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tid = enif_thread_self();
     if (state->lock_used < state->lock_n) {
         //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
+        enif_rwlock_rlock(state->local_lock);
         lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
+        enif_rwlock_runlock(state->local_lock);
         if (lock == NULL) {
             enif_rwlock_rwlock(state->local_lock);
-            lock = &state->locks[(state->lock_used)++];
+            lock = &state->locks[state->lock_used];
             lock->tid = tid;
             tdata = lock->tdata;
-            qsort(state->locks, state->lock_used, sizeof(ep_lock_t), sort_compare_lock);
+            qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
+            (state->lock_used)++;
             enif_rwlock_rwunlock(state->local_lock);
         } else {
             tdata = lock->tdata;
@@ -415,12 +421,16 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tdata->dec.end = tdata->dec.p + tdata->dec.bin.size;
     tdata->dec.term = argv[0];
 
+    enif_rwlock_rlock(state->cache_lock);
     node = get_node_by_name(argv[1], state->cache);
     if (node == NULL) {
         return_error(env, argv[1]);
     }
-
-    check_ret(ret, decode(env, tdata, node));
+    if ((ret = (decode(env, tdata, node))) != RET_OK) {
+        enif_rwlock_runlock(state->cache_lock);
+        return ret;
+    }
+    enif_rwlock_runlock(state->cache_lock);
     return tdata->dec.result;
 }
 
