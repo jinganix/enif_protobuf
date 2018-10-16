@@ -969,7 +969,10 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                 if (field->o_type == occurrence_repeated && field->packed == TRUE) {
 
                     if (wire_type != WIRE_TYPE_LENGTH_PREFIXED) {
-                        check_ret(ret, pass_length_prefixed(env, dec));
+                        check_ret(ret, unpack_field(env, dec, &head, wire_type, field));
+                        if (head) {
+                            spot->t_arr[field->rnum] = enif_make_list_cell(env, head, spot->t_arr[field->rnum]);
+                        }
 
                     } else {
                         check_ret(ret, unpack_element_packed(env, dec, &(spot->t_arr[field->rnum]), field));
