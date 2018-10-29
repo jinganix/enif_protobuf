@@ -471,6 +471,31 @@ unpack_tag(ErlNifEnv *env, ep_dec_t *dec, uint32_t *tag, wire_type_e *wire_type)
     return_error(env, dec->term);
 }
 
+static inline int
+is_packed(ep_field_t *field, int wire_type) {
+    switch (field->type) {
+        case field_sint32:
+        case field_enum:
+        case field_int32:
+        case field_uint32:
+        case field_sint64:
+        case field_int64:
+        case field_uint64:
+        case field_bool:
+        case field_fixed64:
+        case field_sfixed64:
+        case field_double:
+        case field_fixed32:
+        case field_sfixed32:
+        case field_float:
+            if (wire_type == WIRE_TYPE_LENGTH_PREFIXED) {
+                return TRUE;
+            }
+        default:
+            return FALSE;
+    }
+}
+
 static ERL_NIF_TERM
 unpack_element_packed(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_field_t *field)
 {
@@ -941,8 +966,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                     if (replaced == TRUE) {
                         replaced = FALSE;
 
-                    }
-                    else {
+                    } else {
                         spot->t_arr[spot->pos] = enif_make_list_cell(env, term, spot->t_arr[spot->pos]);
                     }
 
@@ -965,15 +989,8 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                 check_ret(ret, pass_field(env, dec, wire_type));
 
             } else {
-
-                if (field->o_type == occurrence_repeated && field->packed == TRUE) {
-
-                    if (wire_type != WIRE_TYPE_LENGTH_PREFIXED) {
-                        check_ret(ret, pass_length_prefixed(env, dec));
-
-                    } else {
-                        check_ret(ret, unpack_element_packed(env, dec, &(spot->t_arr[field->rnum]), field));
-                    }
+                if (field->o_type == occurrence_repeated && is_packed(field, wire_type)) {
+                    check_ret(ret, unpack_element_packed(env, dec, &(spot->t_arr[field->rnum]), field));
 
                 } else if (field->o_type == occurrence_repeated) {
 
@@ -1065,8 +1082,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                             if (field->is_oneof) {
                                 spot->t_arr[field->rnum] = enif_make_tuple2(env, field->name, term);
 
-                            }
-                            else {
+                            } else {
                                 spot->t_arr[field->rnum] = term;
                             }
                         }
