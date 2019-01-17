@@ -21,6 +21,7 @@
 ep_proper_test() ->
     Functions = [F || {F, 0} <- ?MODULE:module_info(exports), F > 'prop_', F < 'prop`'],
     lists:foreach(fun(F) ->
+        ?debugFmt("-> ~p", [F]),
         ?assert(proper:quickcheck(?MODULE:F(), [long_result, {to_file, user}]))
     end, Functions).
 

@@ -999,11 +999,14 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                     }
 
                     if (field->type == field_msg || field->type == field_map) {
-
                         spot->pos = field->rnum;
-                        spot->field = field;
-
-                        spot++;
+                        if (spot->field && spot->field->is_oneof) {
+                            spot++;
+                            spot->field = field;
+                        } else {
+                            spot->field = field;
+                            spot++;
+                        }
 
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {
