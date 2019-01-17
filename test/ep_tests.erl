@@ -58,6 +58,14 @@ load_cache_test() ->
         ]}
     ]).
 
+load_oneof_test() ->
+    ok = enif_protobuf:load_cache([{{msg, 'Person'}, [
+        #gpb_oneof{name = message_body, rnum = 2, fields = [
+            #field{name = file_children, fnum = 3, rnum = 2, type = int32, occurrence = optional, opts = []},
+            #field{name = xattr, fnum = 4, rnum = 2, type = bytes, occurrence = optional, opts = []}]},
+        #field{name = proxy_session_id, fnum = 21, rnum = 3, type = bytes, occurrence = optional, opts = []}
+    ]}]).
+
 loading_cache() ->
     ok = enif_protobuf:load_cache([{{msg, 'Person'}, [
         #field{name = name, fnum = 1, rnum = 2, type = string, occurrence = required, opts = []},

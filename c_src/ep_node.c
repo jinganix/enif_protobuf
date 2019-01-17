@@ -493,8 +493,8 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
                 ff->fnum = field->fnum;
                 ff->field = field;
                 ff++;
-                field++;
             }
+            field++;
         }
 
         ff = node->v_fields;
