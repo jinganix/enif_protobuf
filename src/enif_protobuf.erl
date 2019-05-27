@@ -29,8 +29,8 @@ init() ->
         Path ->
             Path
     end,
-    Processors = erlang:system_info(logical_processors),
-    ok = erlang:load_nif(filename:join(PrivDir, "enif_protobuf"), Processors).
+    Threads = erlang:system_info(schedulers),
+    ok = erlang:load_nif(filename:join(PrivDir, "enif_protobuf"), Threads).
 
 not_loaded(Line) ->
     erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
