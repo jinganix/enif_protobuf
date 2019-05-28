@@ -312,6 +312,55 @@ sort_compare_lock(const void *a, const void *b)
     return (int) ((size_t) ((ep_lock_t *) a)->tid - (size_t) ((ep_lock_t *) b)->tid);
 }
 
+static inline void
+clear_locks(ep_state_t *state, ErlNifTid *tid)
+{
+    uint32_t        i;
+
+    enif_rwlock_rwlock(state->cache_lock);
+    if (state->lock_used == state->lock_n) {
+        for (i = 0; i < state->lock_n; i++) {
+            state->locks[i].tid = *tid;
+        }
+        state->lock_used = 0;
+    }
+    enif_rwlock_rwunlock(state->cache_lock);
+
+    return;
+}
+
+static ep_lock_t *
+get_lock(ep_state_t *state, ErlNifTid *tid)
+{
+    ep_lock_t      *lock;
+
+    if (state->lock_used < state->lock_n) {
+        //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
+        enif_rwlock_rlock(state->local_lock);
+        lock = bsearch(tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
+        enif_rwlock_runlock(state->local_lock);
+        if (lock == NULL) {
+            enif_rwlock_rwlock(state->local_lock);
+            if (state->lock_used == state->lock_n) {
+                clear_locks(state, tid);
+            } else {
+                lock = &state->locks[state->lock_used];
+                lock->tid = *tid;
+                qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
+                (state->lock_used)++;
+            }
+            enif_rwlock_rwunlock(state->local_lock);
+        }
+    } else {
+        lock = bsearch(tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
+        if (lock == NULL) {
+            clear_locks(state, tid);
+        }
+    }
+
+    return lock;
+}
+
 static ERL_NIF_TERM
 encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -330,43 +379,29 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     tid = enif_thread_self();
-    if (state->lock_used < state->lock_n) {
-        //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
-        enif_rwlock_rlock(state->local_lock);
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        enif_rwlock_runlock(state->local_lock);
-        if (lock == NULL) {
-            enif_rwlock_rwlock(state->local_lock);
-            lock = &state->locks[state->lock_used];
-            lock->tid = tid;
-            tdata = lock->tdata;
-            qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
-            (state->lock_used)++;
-            enif_rwlock_rwunlock(state->local_lock);
-        } else {
-            tdata = lock->tdata;
-        }
-    } else {
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        if (lock == NULL) {
-            return_error(env, make_atom(env, "tid_not_found"));
-        }
-        tdata = lock->tdata;
+    lock = get_lock(state, &tid);
+    if (lock == NULL) {
+        return encode_1(env, argc, argv);
+    }
+
+    enif_rwlock_rlock(state->cache_lock);
+    if (lock->tid != tid) {
+        enif_rwlock_runlock(state->cache_lock);
+        return encode_1(env, argc, argv);
     }
 
     //debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
+    tdata = lock->tdata;
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;
 
-    enif_rwlock_rlock(state->cache_lock);
-    if ((ret = (encode(env, argv[0], tdata))) != RET_OK) {
-        enif_rwlock_runlock(state->cache_lock);
-        return ret;
+    if ((ret = (encode(env, argv[0], tdata))) == RET_OK) {
+        ret = tdata->enc.result;
     }
     enif_rwlock_runlock(state->cache_lock);
     //check_ret(ret, encode(env, argv[0], tdata));
 
-    return tdata->enc.result;
+    return ret;
 }
 
 static ERL_NIF_TERM
@@ -388,32 +423,21 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     tid = enif_thread_self();
-    if (state->lock_used < state->lock_n) {
-        //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
-        enif_rwlock_rlock(state->local_lock);
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        enif_rwlock_runlock(state->local_lock);
-        if (lock == NULL) {
-            enif_rwlock_rwlock(state->local_lock);
-            lock = &state->locks[state->lock_used];
-            lock->tid = tid;
-            tdata = lock->tdata;
-            qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
-            (state->lock_used)++;
-            enif_rwlock_rwunlock(state->local_lock);
-        } else {
-            tdata = lock->tdata;
-        }
-    } else {
-        lock = bsearch(&tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        if (lock == NULL) {
-            return_error(env, make_atom(env, "tid_not_found"));
-        }
-        tdata = lock->tdata;
+    lock = get_lock(state, &tid);
+    if (lock == NULL) {
+        return decode_2(env, argc, argv);
     }
+
+    enif_rwlock_rlock(state->cache_lock);
+    if (lock->tid != tid) {
+        enif_rwlock_runlock(state->cache_lock);
+        return decode_2(env, argc, argv);
+    }
+    tdata = lock->tdata;
 
     //debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
     if (!enif_inspect_binary(env, argv[0], &(tdata->dec.bin))) {
+        enif_rwlock_runlock(state->cache_lock);
         return_error(env, argv[0]);
     }
 
@@ -421,17 +445,17 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     tdata->dec.end = tdata->dec.p + tdata->dec.bin.size;
     tdata->dec.term = argv[0];
 
-    enif_rwlock_rlock(state->cache_lock);
     node = get_node_by_name(argv[1], state->cache);
     if (node == NULL) {
+        enif_rwlock_runlock(state->cache_lock);
         return_error(env, argv[1]);
     }
-    if ((ret = (decode(env, tdata, node))) != RET_OK) {
-        enif_rwlock_runlock(state->cache_lock);
-        return ret;
+    if ((ret = (decode(env, tdata, node))) == RET_OK) {
+        ret = tdata->dec.result;
     }
     enif_rwlock_runlock(state->cache_lock);
-    return tdata->dec.result;
+
+    return ret;
 }
 
 static ERL_NIF_TERM

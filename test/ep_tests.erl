@@ -149,7 +149,7 @@ loop_decoding(N) ->
             ignore
     end,
     decoding(),
-    loop_encoding(N - 1).
+    loop_decoding(N - 1).
 
 smp_cache_decoding_test_() ->
     rand:uniform(),
