@@ -8,6 +8,7 @@
 #define A_DEFAULT       "default"
 #define A_ONEOF         "gpb_oneof"
 #define A_PACKED        "packed"
+#define A_DEPRECATED    "deprecated"
 
 ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
@@ -322,6 +323,8 @@ parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
         } else if (enif_get_tuple(env, head, &arity, to_const(array))
                 && arity == 2 && array[0] == make_atom(env, A_DEFAULT)) {
             field->defaut_value = array[1];
+        } else if (head == make_atom(env, A_DEPRECATED)) {
+            /* skip */
         } else {
             return RET_ERROR;
         }
