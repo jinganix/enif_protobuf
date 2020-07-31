@@ -869,6 +869,16 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
                 break;
             }
 
+        } else if (field->type == field_enum) {
+            ep_enum_field_t    *efield;
+            efield = field->sub_node->v_fields;
+            if (efield == NULL) {
+                *t++ = state->integer_zero;
+            } else {
+                *t++ = efield->name;
+            }
+            // TODO(murali@): ensure this runs only for proto3.
+
         } else {
             *t++ = state->atom_undefined;
         }
