@@ -24,10 +24,10 @@ build:
 
 ct:
 	./scripts/generate_emakefile.escript
-	@$(REBAR) skip_deps=true ct
+	@$(REBAR) ct
 
 eunit:
-	@$(REBAR) skip_deps=true eunit
+	@$(REBAR) eunit
 
 test: eunit
 
