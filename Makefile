@@ -1,4 +1,4 @@
-REBAR=$(shell which rebar || echo ./rebar)
+REBAR=$(shell which rebar3 || echo ./rebar3)
 
 all: get-deps compile
 
