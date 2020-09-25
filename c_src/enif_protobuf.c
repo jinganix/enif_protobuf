@@ -20,6 +20,18 @@ make_atom(ErlNifEnv *env, const char *name)
     return enif_make_atom(env, name);
 }
 
+
+char*
+get_atom(ErlNifEnv *env, ERL_NIF_TERM term, char *buf, unsigned size)
+{
+    if (enif_get_atom(env, term, buf, size, ERL_NIF_LATIN1)) {
+        return buf;
+    }
+    return NULL;
+}
+
+
+
 /*
  * nif library callbacks
  */

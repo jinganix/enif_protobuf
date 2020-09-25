@@ -941,7 +941,6 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
             spot->pos = 0;
             if (spot->field && spot->field->is_oneof) {
                 term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned) (spot->t_used));
-                term = enif_make_tuple2(env, spot->field->name, term);
 
             } else {
                 term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned) (spot->t_used));

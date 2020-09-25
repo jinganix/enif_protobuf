@@ -340,4 +340,7 @@ _calloc(size_t nmemb, size_t size)
 ERL_NIF_TERM
 make_atom(ErlNifEnv *env, const char *name);
 
+char*
+get_atom(ErlNifEnv *env, ERL_NIF_TERM term, char *buf, unsigned size);
+
 #endif
