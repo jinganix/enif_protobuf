@@ -1,39 +1,21 @@
-REBAR=$(shell which rebar || echo ./rebar)
+REBAR := $(shell which rebar3 2>/dev/null || echo ./rebar3)
+REBAR_URL := https://s3.amazonaws.com/rebar3/rebar3
 
-all: get-deps compile
+.PHONY: clean compile tests
 
-get-deps:
-	@$(REBAR) get-deps
+all: compile
 
-clean:
-	$(REBAR) clean
-	rm -rf logs
-	rm -rf .eunit
-	rm -f test/*.beam
-	rm -f test/Emakefile
-	rm -f c_src/*.o
-
-compile:
-	@$(REBAR) compile
-
-distclean: clean
-	git clean -fxd
-
-build:
+compile: $(REBAR)
 	$(REBAR) compile
 
-ct:
-	./scripts/generate_emakefile.escript
-	@$(REBAR) skip_deps=true ct
+tests: $(REBAR)
+	$(REBAR) eunit
 
-eunit:
-	@$(REBAR) skip_deps=true eunit
+clean: $(REBAR)
+	$(REBAR) clean
 
-test: eunit
-
-check: build eunit
-
-%.beam: %.erl
-	erlc -o test/ $<
-
-.PHONY: all clean distclean depends build etap eunit check
+./rebar3:
+	erl -noshell -s inets start -s ssl start \
+		-eval '{ok, saved_to_file} = httpc:request(get, {"$(REBAR_URL)", []}, [], [{stream, "./rebar3"}])' \
+		-s inets stop -s init stop
+	chmod +x ./rebar3
