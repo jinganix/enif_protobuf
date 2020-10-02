@@ -14,9 +14,9 @@ ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
 
 static int
-sort_compare_name_field(const void *a, const void *b)
+sort_compare_sub_name_field(const void *a, const void *b)
 {
-    return (int) (((ep_field_t *) a)->name - ((ep_field_t *) b)->name);
+    return (int) (((ep_field_t *) a)->sub_name - ((ep_field_t *) b)->sub_name);
 }
 
 static int
@@ -362,7 +362,7 @@ parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_name_field);
+    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_sub_name_field);
     return RET_OK;
 }
 
@@ -737,6 +737,12 @@ int
 get_field_compare_name(const void *a, const void *b)
 {
     return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->name);
+}
+
+int
+get_field_compare_sub_name(const void *a, const void *b)
+{
+    return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->sub_name);
 }
 
 int

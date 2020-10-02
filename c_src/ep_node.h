@@ -73,6 +73,9 @@ int
 get_field_compare_name(const void *a, const void *b);
 
 int
+get_field_compare_sub_name(const void *a, const void *b);
+
+int
 get_map_field_compare_fnum(const void *a, const void *b);
 
 int
