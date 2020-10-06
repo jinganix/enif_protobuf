@@ -879,6 +879,10 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
             }
             // TODO(murali@): ensure this runs only for proto3.
 
+        } else if (field->type == field_bool) {
+            *t++ = state->atom_false;
+            // TODO(murali@): ensure this runs only for proto3.
+
         } else {
             *t++ = state->atom_undefined;
         }
