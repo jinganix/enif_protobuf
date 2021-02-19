@@ -260,16 +260,14 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     for (i = 0; i < state->lock_n; i++) {
         stack = &(state->tdata[i].stack);
         spot = stack->spots;
-        if (max_fields > spot->t_size) {
-            while (spot < stack->end) {
-                spot->t_size = max_fields + 1;
-                if (spot->t_arr == NULL) {
-                    spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
-                } else {
-                    spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
-                }
-                spot++;
+        while (spot < stack->end) {
+            spot->t_size = max_fields + 1;
+            if (spot->t_arr == NULL) {
+                spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
+            } else {
+                spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
             }
+            spot++;
         }
     }
     old_cache = state->cache;

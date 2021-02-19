@@ -13,6 +13,39 @@
 ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
 
+ep_node_t *
+make_node(int fields_n, node_type_e n_type);
+
+ERL_NIF_TERM
+parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node);
+
+ERL_NIF_TERM
+parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_field_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node);
+
+ERL_NIF_TERM
+fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
+
+ERL_NIF_TERM
+parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node);
+
+ERL_NIF_TERM
+stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size);
+
 static int
 sort_compare_name_field(const void *a, const void *b)
 {
