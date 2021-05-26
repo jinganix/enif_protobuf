@@ -29,8 +29,8 @@ jobs:
       - name: Checkout Proper testing
         uses: actions/checkout@v2
         with:
-          repository: https://github.com/proper-testing/proper.git
-          path: './'
+          repository: proper-testing/proper
+          path: './proper'
       - name: Setup Erlang
         uses: gleam-lang/setup-erlang@v1.1.2
         with:
