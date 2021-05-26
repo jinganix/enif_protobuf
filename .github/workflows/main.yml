@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         otpvsn: [20, 24]
-        os: [centos-latest, ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
       fail-fast: false
 
     container:
@@ -21,8 +21,11 @@ jobs:
       VERBOSE: 1
     steps:
       - uses: actions/checkout@v2
-      - name: Erlang ${{ matrix.otpvsn }}
-        # TODO: test with protobuf (in the container)
+      - name: Setup Erlang
+        uses: gleam-lang/setup-erlang@v1.1.2
+        with:
+          otp-version: matrix.otpvsn
+      - name: Run test
         run: |
           set -xv
           make
