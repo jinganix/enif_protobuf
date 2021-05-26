@@ -17,8 +17,8 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["24.0"]
-        os: [macos-latest]
+        otp: ["23"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
       fail-fast: false
 
     env:
