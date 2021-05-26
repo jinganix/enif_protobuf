@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    - cron: '0 10 * * *' # Once per day at 10am UTC
+
+jobs:
+  ci:
+    name: Build and test
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        otp: ["21.3.8.17", "22.3.4.9", "23.3.1", "24.0.1"]
+        os: [ubuntu-latest]
+      fail-fast: false
+
+    env:
+      ERL_LIBS: './'
+    steps:
+      - name: Setup Erlang
+        uses: gleam-lang/setup-erlang@v1.1.2
+        with:
+          otp-version: ${{ matrix.otp }}
+      - uses: actions/checkout@v2
+      - name: Checkout Proper
+        uses: actions/checkout@v2
+        with:
+          repository: proper-testing/proper
+          path: "./proper"
+      - name: Run test
+        run: |
+          make
+          make tests

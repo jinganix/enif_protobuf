@@ -11,7 +11,6 @@
 -compile(export_all).
 
 -import(enif_protobuf, [set_opts/1, load_cache/1, encode_msg/2, encode/1]).
--import(gpb, [decode_msg/3]).
 
 -record(m1, {a}).
 -record(m2, {a, b}).

@@ -9,10 +9,12 @@
 -include_lib("gpb/include/gpb.hrl").
 
 -record('Person', {
-    name :: iolist(),        % = 1
-    id :: integer(),       % = 2, 32 bits
+    name :: iolist(), % = 1
+    id :: integer(), % = 2, 32 bits
     email :: iolist() | undefined % = 3
 }).
+
+-record(m1, {a}).
 
 load_cache_test() ->
     ok = enif_protobuf:load_cache([
@@ -126,13 +128,13 @@ smp_cache_encoding_test_() ->
     Processors = erlang:system_info(logical_processors),
     N = 500000,
     {spawn, {timeout, 60, ?_test(begin
-                                     [spawn(fun() ->
-                                         loading_cache(),
-                                         loop_encoding(N)
-                                            end) || _N <- lists:seq(1, Processors * 2)],
-                                     loading_cache(),
-                                     loop_encoding(N + 1000000)
-                                 end)}}.
+        [spawn(fun() ->
+            loading_cache(),
+            loop_encoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_encoding(N + 1000000)
+    end)}}.
 
 decoding() ->
     Bin = <<10, 7, 97, 98, 99, 32, 100, 101, 102, 16, 217, 2, 26, 13, 97, 64, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109>>,
@@ -156,10 +158,21 @@ smp_cache_decoding_test_() ->
     Processors = erlang:system_info(logical_processors),
     N = 500000,
     {spawn, {timeout, 60, ?_test(begin
-                                     [spawn(fun() ->
-                                         loading_cache(),
-                                         loop_decoding(N)
-                                            end) || _N <- lists:seq(1, Processors * 2)],
-                                     loading_cache(),
-                                     loop_decoding(N + 1000000)
-                                 end)}}.
+        [spawn(fun() ->
+            loading_cache(),
+            loop_decoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_decoding(N + 1000000)
+    end)}}.
+
+decode_uint64_test() ->
+    Defs = [
+        {{msg, m1}, [
+            #field{name = a, fnum = 1, rnum = #m1.a, type = uint64, occurrence = required, opts = []}
+        ]}
+    ],
+    Bin = <<8, 181, 207, 209, 168, 154, 47>>,
+    enif_protobuf:load_cache(Defs),
+    M1 = enif_protobuf:decode(Bin, m1),
+    M1 = gpb:decode_msg(Bin, m1, Defs).

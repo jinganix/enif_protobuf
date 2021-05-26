@@ -1,3 +1,6 @@
+REBAR := $(shell which rebar3 2>/dev/null || echo ./rebar3)
+REBAR_URL := https://s3.amazonaws.com/rebar3/rebar3
+
 erl     ?= erl
 erlc    ?= erlc
 escript ?= escript
@@ -23,7 +26,16 @@ else
 endif
 
 
-all:	benchmarks-erl-code
+all: compile benchmarks-erl-code
+
+./rebar3:
+	erl -noshell -s inets start -s ssl start \
+		-eval '{ok, saved_to_file} = httpc:request(get, {"$(REBAR_URL)", []}, [], [{stream, "./rebar3"}])' \
+		-s inets stop -s init stop
+	chmod +x ./rebar3
+
+compile: $(REBAR)
+	$(REBAR) compile
 
 benchmarks-erl-code: tmp/msg_r.beam tmp/d_r.beam \
 		tmp/msg_mo.beam tmp/d_mo.beam \
@@ -50,7 +62,7 @@ show-hw-sw-info = \
 #  $2  - any options
 #  $3  - proto file name
 gpb-compile = \
-	$(erl) -boot start_clean -pa ../ebin ../deps/*/ebin -noshell -noinput +B \
+	$(erl) -boot start_clean -pa _build/default/lib/*/ebin -noshell -noinput +B \
 		-v never -c false -I`pwd` -o tmp \
 		-modsuffix $1 \
 		$(2) \
@@ -69,7 +81,7 @@ tmp/%_mp.erl: %.proto
 	$(call gpb-compile,_mp,-maps -maps_unset_optional present_undefined,$<)
 
 %.beam: %.erl
-	cd tmp; $(erlc) -Wall $(HIPE_ERLC_OPTS) -I../../deps/gpb/include +debug_info \
+	cd tmp; $(erlc) -Wall $(HIPE_ERLC_OPTS) -I../_build/default/lib/gpb/include +debug_info \
 		$(patsubst tmp/%,%,$<)
 
 tmp/%.nif.so: %.proto
