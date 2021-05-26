@@ -22,9 +22,6 @@ jobs:
         os: [ubuntu-latest]
       fail-fast: false
 
-    container:
-      image: erlang:${{ matrix.otpvsn }}
-
     env:
       VERBOSE: 1
     steps:
