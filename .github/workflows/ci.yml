@@ -1,4 +1,4 @@
-name: build
+name: CI
 
 on:
   push:
@@ -26,6 +26,11 @@ jobs:
       VERBOSE: 1
     steps:
       - uses: actions/checkout@v2
+      - name: Checkout Proper testing
+        uses: actions/checkout@v2
+        with:
+          repository: https://github.com/proper-testing/proper.git
+          path: './'
       - name: Setup Erlang
         uses: gleam-lang/setup-erlang@v1.1.2
         with:
@@ -35,3 +40,5 @@ jobs:
           set -xv
           make
           make test
+        env:
+          ERL_LIBS: './proper'
