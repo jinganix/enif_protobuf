@@ -9,8 +9,8 @@
 -include_lib("gpb/include/gpb.hrl").
 
 -record('Person', {
-    name :: iolist(),        % = 1
-    id :: integer(),       % = 2, 32 bits
+    name :: iolist(), % = 1
+    id :: integer(), % = 2, 32 bits
     email :: iolist() | undefined % = 3
 }).
 
