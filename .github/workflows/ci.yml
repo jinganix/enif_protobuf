@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         otp: ["24.0"]
-        os: [centos-latest]
+        os: [macos-latest]
       fail-fast: false
 
     env:
