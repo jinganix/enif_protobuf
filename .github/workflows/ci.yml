@@ -39,6 +39,7 @@ jobs:
         env:
           ERL_LIBS: './proper'
         run: |
+          echo $ERL_LIBS
           set -xv
           make
           make test
