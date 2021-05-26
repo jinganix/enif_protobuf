@@ -126,13 +126,13 @@ smp_cache_encoding_test_() ->
     Processors = erlang:system_info(logical_processors),
     N = 500000,
     {spawn, {timeout, 60, ?_test(begin
-                                     [spawn(fun() ->
-                                         loading_cache(),
-                                         loop_encoding(N)
-                                            end) || _N <- lists:seq(1, Processors * 2)],
-                                     loading_cache(),
-                                     loop_encoding(N + 1000000)
-                                 end)}}.
+        [spawn(fun() ->
+            loading_cache(),
+            loop_encoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_encoding(N + 1000000)
+    end)}}.
 
 decoding() ->
     Bin = <<10, 7, 97, 98, 99, 32, 100, 101, 102, 16, 217, 2, 26, 13, 97, 64, 101, 120, 97, 109, 112, 108, 101, 46, 99, 111, 109>>,
@@ -156,10 +156,10 @@ smp_cache_decoding_test_() ->
     Processors = erlang:system_info(logical_processors),
     N = 500000,
     {spawn, {timeout, 60, ?_test(begin
-                                     [spawn(fun() ->
-                                         loading_cache(),
-                                         loop_decoding(N)
-                                            end) || _N <- lists:seq(1, Processors * 2)],
-                                     loading_cache(),
-                                     loop_decoding(N + 1000000)
-                                 end)}}.
+        [spawn(fun() ->
+            loading_cache(),
+            loop_decoding(N)
+        end) || _N <- lists:seq(1, Processors * 2)],
+        loading_cache(),
+        loop_decoding(N + 1000000)
+    end)}}.

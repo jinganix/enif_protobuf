@@ -26,7 +26,7 @@ jobs:
       VERBOSE: 1
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout Proper testing
+      - name: Checkout Proper
         uses: actions/checkout@v2
         with:
           repository: proper-testing/proper

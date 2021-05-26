@@ -410,7 +410,7 @@ fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
         return_error(env, term);
     }
 
-    if (arity != 4 || array[0] != make_atom(env, A_ONEOF)) {
+    if (array[0] != make_atom(env, A_ONEOF)) {
         return_error(env, term);
     }
     field->name = array[1];
@@ -497,7 +497,7 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
         if (arity == 7 && array[0] == state->atom_field) {
             check_ret(ret, fill_msg_field(env, head, field));
             node->v_size++;
-        } else if (arity == 4 && array[0] == make_atom(env, A_ONEOF)) {
+        } else if (array[0] == make_atom(env, A_ONEOF)) {
             check_ret(ret, fill_oneof_field(env, head, field));
             node->v_size += field->sub_node->size;
         } else {
