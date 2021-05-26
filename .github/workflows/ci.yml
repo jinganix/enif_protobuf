@@ -17,15 +17,15 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["24.0"]
-        os: [ubuntu-latest, windows-latest]
+        otp: ["23"]
+        os: [macos-latest, ubuntu-latest, windows-latest]
       fail-fast: false
 
     env:
       ERL_LIBS: './'
     steps:
       - name: Setup Erlang
-        uses: gleam-lang/setup-erlang@v1.1.2
+        uses: bajankristof/setup-erlang@master
         with:
           otp-version: ${{ matrix.otp }}
       - uses: actions/checkout@v2
