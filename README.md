@@ -1,10 +1,12 @@
+[![build](https://github.com/jg513/enif_protobuf/actions/workflows/main.yml/badge.svg)](https://github.com/jg513/enif_protobuf/actions/workflows/main.yml)
+
 # enif_protobuf
 A Google Protobuf implementation with enif (Erlang nif).
 
 Base on gpb, see more info at
 https://github.com/tomas-abrahamsson/gpb
 
-Basic example of using gpb
+Basic example of using epb
 --------------------------
 
 Let's say we have a protobuf file, `x.proto`
