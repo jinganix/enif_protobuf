@@ -1,0 +1,28 @@
+name: build
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  build:
+
+    name: Build and test epb
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        otpvsn: [20, 21, 22, 23, 24]
+      fail-fast: false
+
+    container:
+      image: erlang:${{ matrix.otpvsn }}
+
+    env:
+      VERBOSE: 1
+    steps:
+      - uses: actions/checkout@v2
+      - name: Erlang ${{ matrix.otpvsn }}
+        # TODO: test with protobuf (in the container)
+        run: |
+          set -xv
+          make
+          make test
