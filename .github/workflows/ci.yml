@@ -37,10 +37,8 @@ jobs:
           otp-version: ${{ matrix.otpvsn }}
       - name: Run test
         env:
-          ERL_LIBS: './proper'
+          ERL_LIBS: './'
         run: |
-          echo erl-libs: $ERL_LIBS
-          ls -R $ERL_LIBS
           set -xv
           make
           make test
