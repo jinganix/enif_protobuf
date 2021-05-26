@@ -1,6 +1,6 @@
 #! /usr/bin/env escript
 %% This line tells emacs to use -*- erlang -*- mode -*- coding: iso-8859-1 -*-
-%%! -pa ../ebin/ -pa tmp/ -sname protoexerciser
+%%! -pa _build/default/lib/enif_protobuf/ebin/ -pa tmp/ -sname protoexerciser
 
 %%% Copyright (C) 2011  Tomas Abrahamsson
 %%%

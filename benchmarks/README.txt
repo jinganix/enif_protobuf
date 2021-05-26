@@ -20,13 +20,10 @@ Deviations from the benchmarks in protobuf's subversion repository:
 Running a benchmark
 -------------------
 
-1. Build the gpb itself (in the top-directory of gpb)
+1. Build the benchmarking code (in this benchmarks directory)
    $ make
 
-2. Build the benchmarking code (in this benchmarks directory)
-   $ make
-
-3. Run the benchmarks:
+2. Run the benchmarks:
    $ make benchmarks
 
    This will call the proto-bench escript. Arguments are given in
@@ -63,6 +60,6 @@ Running a benchmark
    Please note that things here might change as development shifts,
    for instance target names and variables, these names are super stable.
 
-4. Wait! Each test runs for around 30--35 seconds, and there are 2 tests
+3. Wait! Each test runs for around 30--35 seconds, and there are 2 tests
    per msg/data combination. The above command will take about
    4.5 -- 5 minutes to run.
