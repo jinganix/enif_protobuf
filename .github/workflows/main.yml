@@ -18,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        otpvsn: [24.0]
+        otpvsn: ['24.0']
         os: [ubuntu-latest]
       fail-fast: false
 
