@@ -14,12 +14,11 @@ jobs:
   ci:
     name: Build and test epb
     runs-on: ${{ matrix.os }}
-    container: erlang:${{ matrix.otp }}
 
     strategy:
       matrix:
         otp: ["24.0"]
-        os: [centos-latest, ubuntu-latest, macos-latest, windows-latest]
+        os: [centos-latest]
       fail-fast: false
 
     env:
@@ -31,9 +30,13 @@ jobs:
         with:
           repository: proper-testing/proper
           path: "./proper"
+      - name: Setup Erlang
+        uses: gleam-lang/setup-erlang@v1.1.2
+        with:
+          otp-version: ${{ matrix.otpvsn }}
       - name: Run test
         env:
-          ERL_LIBS: "./"
+          ERL_LIBS: './'
         run: |
           set -xv
           make
