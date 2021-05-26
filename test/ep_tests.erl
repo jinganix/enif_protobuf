@@ -166,7 +166,8 @@ smp_cache_decoding_test_() ->
         loop_decoding(N + 1000000)
     end)}}.
 
-decode_uint64_test() ->
+% https://github.com/jg513/enif_protobuf/issues/19
+decode_uint64_issue_19_test() ->
     Defs = [
         {{msg, m1}, [
             #field{name = a, fnum = 1, rnum = #m1.a, type = uint64, occurrence = required, opts = []}
@@ -174,5 +175,5 @@ decode_uint64_test() ->
     ],
     Bin = <<8, 181, 207, 209, 168, 154, 47>>,
     enif_protobuf:load_cache(Defs),
-    M1 = enif_protobuf:decode(Bin, m1),
-    M1 = gpb:decode_msg(Bin, m1, Defs).
+    {m1, 1621972248501} = enif_protobuf:decode(Bin, m1),
+    {m1, 1621972248501} = gpb:decode_msg(Bin, m1, Defs).
