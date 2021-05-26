@@ -1,4 +1,5 @@
 *.d
+*.dump
 *.iml
 *.o
 *.so
