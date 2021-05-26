@@ -24,16 +24,17 @@ jobs:
     env:
       VERBOSE: 1
     steps:
+      - name: Setup Erlang
+        uses: bajankristof/setup-erlang@master
+        with:
+          otp-version: ${{ matrix.otp }}
+          allow-cache: false
       - uses: actions/checkout@v2
       - name: Checkout Proper
         uses: actions/checkout@v2
         with:
           repository: proper-testing/proper
           path: "./proper"
-      - name: Setup Erlang
-        uses: gleam-lang/setup-erlang@v1.1.2
-        with:
-          otp-version: ${{ matrix.otp }}
       - name: Run test
         env:
           ERL_LIBS: './'
