@@ -33,7 +33,7 @@ jobs:
       - name: Setup Erlang
         uses: gleam-lang/setup-erlang@v1.1.2
         with:
-          otp-version: ${{ matrix.otpvsn }}
+          otp-version: ${{ matrix.otp }}
       - name: Run test
         env:
           ERL_LIBS: './'
