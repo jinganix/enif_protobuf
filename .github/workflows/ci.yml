@@ -17,18 +17,17 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["23"]
-        os: [windows-latest]
+        otp: ["24.0"]
+        os: [macos-latest, ubuntu-latest]
       fail-fast: false
 
     env:
-      VERBOSE: 1
+      ERL_LIBS: './'
     steps:
       - name: Setup Erlang
-        uses: bajankristof/setup-erlang@master
+        uses: gleam-lang/setup-erlang@v1.1.2
         with:
           otp-version: ${{ matrix.otp }}
-          allow-cache: false
       - uses: actions/checkout@v2
       - name: Checkout Proper
         uses: actions/checkout@v2
@@ -36,8 +35,6 @@ jobs:
           repository: proper-testing/proper
           path: "./proper"
       - name: Run test
-        env:
-          ERL_LIBS: './'
         run: |
           make
           make tests
