@@ -12,13 +12,12 @@ on:
 
 jobs:
   ubuntu:
-    name: Build and test
-    runs-on: ${{ matrix.os }}
+    name: Test on Ubuntu
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
         otp: ["22", "23", "24"]
-        os: [ubuntu-latest]
       fail-fast: false
 
     container:
@@ -26,8 +25,41 @@ jobs:
 
     env:
       ERL_LIBS: './'
+
     steps:
       - uses: actions/checkout@v2
+      - name: Checkout Proper
+        uses: actions/checkout@v2
+        with:
+          repository: proper-testing/proper
+          path: "./proper"
+      - name: Run test
+        run: |
+          make
+          make tests
+
+  macos:
+    name: Test on MacOS
+    runs-on: macos-latest
+
+    strategy:
+      matrix:
+        otp: ["22", "23", "24"]
+      fail-fast: false
+
+    env:
+      ERL_LIBS: './'
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Brew Version Check
+        run: brew --version
+      - name: Keep Brew Fresh
+        run: brew update
+      - name: Install Erlang
+        run: brew install erlang@${{ matrix.otp }}
+      - name: Brew Link
+        run: brew link erlang@${{ matrix.otp }} --force
       - name: Checkout Proper
         uses: actions/checkout@v2
         with:
