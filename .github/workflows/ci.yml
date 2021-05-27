@@ -58,6 +58,8 @@ jobs:
         run: brew update
       - name: Install Erlang
         run: brew install erlang@${{ matrix.otp }}
+      - name: Brew Link
+        run: brew link erlang@${{ matrix.otp }} --force
       - name: Checkout Proper
         uses: actions/checkout@v2
         with:
