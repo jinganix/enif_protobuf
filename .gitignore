@@ -9,7 +9,6 @@
 .project
 .rebar
 .settings
-TEST-*
 _build
 benchmarks/tmp
 cmake-build-debug
