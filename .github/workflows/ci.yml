@@ -34,5 +34,4 @@ jobs:
           path: "./proper"
       - name: Run test
         run: |
-          make
-          make tests
+          .\rebar3 compile
