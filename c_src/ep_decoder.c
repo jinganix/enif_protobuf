@@ -143,7 +143,7 @@ unpack_uint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
         val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_ulong(env, (ErlNifUInt64) val);
+            *term = enif_make_uint64(env, (ErlNifUInt64) val);
             return RET_OK;
         }
         shift += 7;
@@ -211,7 +211,7 @@ unpack_fixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
     if (dec->p + sizeof(uint64_t) <= dec->end) {
 
         val = *(uint64_t *) (dec->p);
-        *term = enif_make_ulong(env, (ErlNifUInt64) val);
+        *term = enif_make_uint64(env, (ErlNifUInt64) val);
         dec->p += sizeof(uint64_t);
         return RET_OK;
     }
