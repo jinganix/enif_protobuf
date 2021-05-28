@@ -1,4 +1,5 @@
 [![CI](https://github.com/jg513/enif_protobuf/actions/workflows/ci.yml/badge.svg)](https://github.com/jg513/enif_protobuf/actions/workflows/ci.yml)
+
 # enif_protobuf
 A Google Protobuf implementation with enif (Erlang nif).
 
@@ -18,16 +19,20 @@ message Person {
 ```
 We can generate code for this definition in a number of different
 ways. Here we use the command line tool.
-```
+```shell
 # export GPB_PATH=/path/to/gpb
 # ${GPB_PATH}/bin/protoc-erl -I. x.proto
 ```
-Now we've got `x.erl` and `x.hrl`. First we compile it and then we can
-try it out in the Erlang shell:
-```erlang
+Now we've got `x.erl` and `x.hrl`. First we compile it.
+```shell
 # erlc -I${GPB_PATH}/include x.erl
-# export EPB_PATH=/path/to/enif_protobuf
-# erl -pa ${EPB_PATH}/ebin
+```
+
+Then we can try it out in the Erlang shell. When use rebar3, the `EPB_EBIN_PATH`
+is in `_build` directory.
+```erlang
+# export EPB_EBIN_PATH=/path/to/enif_protobuf/ebin
+# erl -pa ${EPB_EBIN_PATH}
 Erlang/OTP 18 [erts-7.3] [source] [64-bit] [smp:4:4] [async-threads:10] [kernel-poll:false]
 
 Eshell V7.3  (abort with ^G)
