@@ -123,6 +123,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 
         EP_MAKE_ATOM(env, state, required);
         EP_MAKE_ATOM(env, state, optional);
+        EP_MAKE_ATOM(env, state, defaulty);
         EP_MAKE_ATOM(env, state, repeated);
 
         *priv = (void *) state;
@@ -162,7 +163,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     char            buf[16];
     ep_spot_t      *spot;
-    ep_node_t      *node;
+    ep_node_t      *node = NULL;
     ep_cache_t     *cache, *old_cache;
     ep_stack_t     *stack;
     int32_t         arity;
@@ -227,11 +228,6 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             return_error(env, head);
         }
 
-        if (array[0] == make_atom(env, "syntax") || array[0] == make_atom(env, "proto3_msgs")) {
-            term = tail;
-            continue;
-        }
-
         if ((ret = parse_node(env, head, &node, proto_v, syn_list)) != RET_OK) {
             if (node != NULL) {
                 free_node(node);
@@ -240,12 +236,18 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             return_error(env, ret);
         }
 
-        if (node->n_type == node_msg) {
-            max_fields = max_fields >= node->size ? max_fields : node->size;
+        if (node != NULL) {
+            if (node->n_type == node_msg) {
+                max_fields = max_fields >= node->size ? max_fields : node->size;
+            }
+            ep_cache_insert(node, cache);
         }
-
-        ep_cache_insert(node, cache);
         term = tail;
+    }
+
+    if (!cache->used) {
+        ep_cache_destroy(&cache);
+        return_error(env, argv[0]);
     }
     ep_cache_sort(cache);
 

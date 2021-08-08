@@ -43,7 +43,7 @@ ep_cache_destroy(ep_cache_t **cache)
 		return;
 	}
 
-    for (i = 0; i < ca->size; i++) {
+    for (i = 0; i < ca->used; i++) {
 
         /*
          * Ids.node and Types.node point to the same node. Just free once.
@@ -93,8 +93,8 @@ sort_compare_type(const void *a, const void *b)
 void
 ep_cache_sort(ep_cache_t *cache)
 {
-    qsort(cache->ids, cache->size, sizeof(ep_node_id_t), sort_compare_id);
-    qsort(cache->names, cache->size, sizeof(ep_node_name_t), sort_compare_type);
+    qsort(cache->ids, cache->used, sizeof(ep_node_id_t), sort_compare_id);
+    qsort(cache->names, cache->used, sizeof(ep_node_name_t), sort_compare_type);
 }
 
 static int
@@ -108,7 +108,7 @@ get_node_by_id(uint32_t id, ep_cache_t *cache)
 {
     ep_node_id_t   *i_node;
 
-    i_node = bsearch(&id, cache->ids, cache->size, sizeof(ep_node_id_t), search_compare_id);
+    i_node = bsearch(&id, cache->ids, cache->used, sizeof(ep_node_id_t), search_compare_id);
     if (i_node == NULL) {
         return NULL;
     }
@@ -127,7 +127,7 @@ get_node_by_name(ERL_NIF_TERM name, ep_cache_t *cache)
 {
     ep_node_name_t *n_node;
 
-    n_node = bsearch(&name, cache->names, cache->size, sizeof(ep_node_name_t), search_compare_name);
+    n_node = bsearch(&name, cache->names, cache->used, sizeof(ep_node_name_t), search_compare_name);
     if (n_node == NULL) {
         return NULL;
     }

@@ -242,6 +242,7 @@ struct ep_state_s {
 
     ERL_NIF_TERM    atom_required;
     ERL_NIF_TERM    atom_optional;
+    ERL_NIF_TERM    atom_defaulty;
     ERL_NIF_TERM    atom_repeated;
 };
 

@@ -338,6 +338,7 @@ parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 
     if (term == state->atom_required)       { field->o_type = occurrence_required; return RET_OK; }
     else if (term == state->atom_optional)  { field->o_type = occurrence_optional; return RET_OK; }
+    else if (term == state->atom_defaulty)  { field->o_type = occurrence_optional; return RET_OK; }
     else if (term == state->atom_repeated)  { field->o_type = occurrence_repeated; return RET_OK; }
 
     return RET_ERROR;
@@ -547,32 +548,31 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 ERL_NIF_TERM
 parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list)
 {
-    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity, msg_arity;
     uint32_t        len;
     node_type_e     n_type;
     ERL_NIF_TERM    head, tail, *array, *msg_array, ret;
 
+    *node = NULL;
     if (!enif_get_tuple(env, term, &arity, to_const(array)) || arity != 2) {
-        return_error(env, term);
+        return RET_OK;
     }
 
     if (!enif_get_tuple(env, array[0], &msg_arity, to_const(msg_array)) || msg_arity != 2) {
-        return_error(env, term);
+        return RET_OK;
     }
 
     if (!enif_get_list_length(env, array[1], &len)) {
-        return_error(env, term);
+        return RET_OK;
     }
 
     if (msg_array[0] == state->atom_msg) {
         n_type = node_msg;
-
     } else if (msg_array[0] == state->atom_enum) {
         n_type = node_enum;
-
     } else {
-        return_error(env, term);
+        return RET_OK;
     }
 
     *node = make_node(len, n_type);
@@ -616,7 +616,7 @@ prelink_nodes(ErlNifEnv *env, ep_cache_t *cache)
     uint32_t		    j;
     ep_fnum_field_t    *ff;
 
-    for (i = 0; i < cache->size; i++) {
+    for (i = 0; i < cache->used; i++) {
         node = cache->names[i].node;
         if (node->n_type == node_msg) {
             for (j = 0; j < node->size; j++) {
