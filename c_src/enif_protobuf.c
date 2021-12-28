@@ -30,7 +30,6 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
     uint32_t        lock_n, i;
     ep_stack_t     *stack;
     ep_state_t     *state;
-    ErlNifBinary    bin;
 
     if (*priv == NULL) {
         if (!enif_get_uint(env, info, &lock_n)) {
@@ -79,14 +78,6 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         for (i = 0; i < state->lock_n; i++) {
             state->locks[i].tdata = &(state->tdata[i]);
         }
-
-        state->integer_zero = enif_make_int(env, 0);
-        state->double_zero = enif_make_double(env, 0.0);
-        if (!enif_alloc_binary(0, &bin)) {
-            return RET_ERROR;
-        }
-        state->binary_nil = enif_make_binary(env, &bin);
-        state->nil = enif_make_list(env, 0);
 
 #define EP_MAKE_ATOM(env, state, name) (state)->atom_##name = make_atom(env, #name)
 
@@ -168,8 +159,8 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     ep_stack_t     *stack;
     int32_t         arity;
     ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    uint32_t        i, len = 0, proto_v = 2, max_fields = 0;
-    ERL_NIF_TERM    term, head, tail, ret, syn_list = 0;
+    uint32_t        i, len = 0, proto_v = 2, max_fields = 2;
+    ERL_NIF_TERM    term, head, tail, ret, proto3_list = 0;
     ERL_NIF_TERM   *array;
 
     if (argc != 1) {
@@ -179,12 +170,12 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     term = argv[0];
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
-            return_error(env, head);
+            raise_exception(env, head);
         }
 
         if (array[0] == make_atom(env, "syntax")) {
             if (!enif_get_string(env, array[1], buf, sizeof(buf), ERL_NIF_LATIN1)) {
-                return_error(env, head);
+                raise_exception(env, head);
             }
 
             if (!strncmp(buf, "proto2", sizeof("proto2"))) {
@@ -192,7 +183,7 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
             } else if (!strncmp(buf, "proto3", sizeof("proto3"))) {
                 proto_v = 3;
             } else {
-                return_error(env, head);
+                raise_exception(env, head);
             }
 
             term = tail;
@@ -201,9 +192,9 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
         if (array[0] == make_atom(env, "proto3_msgs")) {
             if (enif_is_list(env, array[1])) {
-                syn_list = array[1];
+                proto3_list = array[1];
             } else {
-                return_error(env, head);
+                raise_exception(env, head);
             }
             term = tail;
             continue;
@@ -214,30 +205,30 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     if (len == 0) {
-        return_error(env, argv[0]);
+        raise_exception(env, argv[0]);
     }
 
     if (ep_cache_create(len, &cache) != RET_OK) {
-        return_exception(env, argv[0]);
+        raise_exception(env, argv[0]);
     }
 
     term = argv[0];
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
             ep_cache_destroy(&cache);
-            return_error(env, head);
+            raise_exception(env, head);
         }
 
-        if ((ret = parse_node(env, head, &node, proto_v, syn_list)) != RET_OK) {
+        if ((ret = parse_node(env, head, &node, proto_v, proto3_list)) != RET_OK) {
             if (node != NULL) {
                 free_node(node);
             }
             ep_cache_destroy(&cache);
-            return_error(env, ret);
+            raise_exception(env, ret);
         }
 
         if (node != NULL) {
-            if (node->n_type == node_msg) {
+            if (node->n_type == node_msg || node->n_type == node_map) {
                 max_fields = max_fields >= node->size ? max_fields : node->size;
             }
             ep_cache_insert(node, cache);
@@ -247,13 +238,13 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     if (!cache->used) {
         ep_cache_destroy(&cache);
-        return_error(env, argv[0]);
+        raise_exception(env, argv[0]);
     }
     ep_cache_sort(cache);
 
     if ((ret = prelink_nodes(env, cache)) != RET_OK) {
         ep_cache_destroy(&cache);
-        return_error(env, ret);
+        return ret;
     }
 
     enif_rwlock_rwlock(state->cache_lock);
@@ -375,7 +366,7 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     if (state->cache == NULL) {
-        return_error(env, make_atom(env, "cache_not_exists"));
+        raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
     tid = enif_thread_self();
@@ -399,7 +390,6 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         ret = tdata->enc.result;
     }
     enif_rwlock_runlock(state->cache_lock);
-    //check_ret(ret, encode(env, argv[0], tdata));
 
     return ret;
 }
@@ -419,7 +409,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     if (state->cache == NULL) {
-        return_error(env, make_atom(env, "cache_not_exists"));
+        raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
     tid = enif_thread_self();
@@ -438,7 +428,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     //debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
     if (!enif_inspect_binary(env, argv[0], &(tdata->dec.bin))) {
         enif_rwlock_runlock(state->cache_lock);
-        return_error(env, argv[0]);
+        raise_exception(env, argv[0]);
     }
 
     tdata->dec.p = (char *) (tdata->dec.bin.data);
@@ -448,7 +438,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     node = get_node_by_name(argv[1], state->cache);
     if (node == NULL) {
         enif_rwlock_runlock(state->cache_lock);
-        return_error(env, argv[1]);
+        raise_exception(env, argv[1]);
     }
     if ((ret = (decode(env, tdata, node))) == RET_OK) {
         ret = tdata->dec.result;

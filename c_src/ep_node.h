@@ -58,7 +58,7 @@ void
 free_node(ep_node_t *node);
 
 ERL_NIF_TERM
-parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list);
+parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM proto3_list);
 
 ERL_NIF_TERM
 prelink_nodes(ErlNifEnv *env, ep_cache_t *cache);

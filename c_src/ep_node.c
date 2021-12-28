@@ -17,6 +17,12 @@ ep_node_t *
 make_node(int fields_n, node_type_e n_type);
 
 ERL_NIF_TERM
+link_sub_node(ErlNifEnv *env, ep_cache_t *cache, ep_field_t *field);
+
+ERL_NIF_TERM
+do_prelink_nodes(ErlNifEnv *env, ep_cache_t *cache, ep_node_t *node);
+
+ERL_NIF_TERM
 parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node);
 
 ERL_NIF_TERM
@@ -107,7 +113,7 @@ free_node(ep_node_t *node)
 
     if (node->fields != NULL) {
         for (i = 0; i < node->size; i++) {
-            if (node->n_type == node_msg) {
+            if (node->n_type == node_msg || node->n_type == node_map) {
                 field = &(((ep_field_t *) node->fields)[i]);
                 if (field->type == field_map || field->type == field_oneof) {
                     if (field->sub_node != NULL) {
@@ -153,7 +159,7 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
     tmp = term;
     while (enif_get_list_cell(env, tmp, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array))) {
-            return_error(env, term);
+            raise_exception(env, term);
         }
 
         if (arity == 3) {
@@ -165,13 +171,13 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
                     allow_alias = 0;
                     break;
                 } else {
-                    return_error(env, head);
+                    raise_exception(env, head);
                 }
             } else {
-                return_error(env, head);
+                raise_exception(env, head);
             }
         } else if (arity != 2) {
-            return_error(env, head);
+            raise_exception(env, head);
         }
         tmp = tail;
     }
@@ -180,7 +186,7 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
     v_field = node->v_fields;
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array))) {
-            return_error(env, term);
+            raise_exception(env, term);
         }
 
         if (arity == 2) {
@@ -188,7 +194,7 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
                 field->name = array[0];
                 field->value = value;
             } else {
-                return_error(env, term);
+                raise_exception(env, term);
             }
         } else {
             term = tail;
@@ -203,7 +209,7 @@ parse_enum_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
                     v_field--;
                     break;
                 } else {
-                    return_error(env, head);
+                    raise_exception(env, head);
                 }
             }
         }
@@ -251,10 +257,12 @@ parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
         if (arity == 2 && array[0] == state->atom_enum && enif_is_atom(env, array[1])) {
             field->type = field_enum;
             field->sub_name = array[1];
+            field->sub_node = NULL;
             return RET_OK;
         } else if (arity == 2 && array[0] == state->atom_msg && enif_is_atom(env, array[1])) {
             field->type = field_msg;
             field->sub_name = array[1];
+            field->sub_node = NULL;
             return RET_OK;
         }
     }
@@ -265,55 +273,69 @@ parse_field_basic(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 ERL_NIF_TERM
 parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
-    ep_field_t        *f;
+    ep_node_t      *node;
     ERL_NIF_TERM   *array;
 
     if (!enif_get_tuple(env, term, &arity, to_const(array))) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (arity != 3 || array[0] != state->atom_map) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     field->type = field_map;
-    field->sub_node = make_node(2, node_map);
+    field->sub_node = make_node(2, node_msg);
     if (field->sub_node == NULL) {
-        return RET_ERROR;
+        raise_exception(env, state->atom_error);
     }
 
-    field->sub_node->n_type = node_map;
-    field->sub_node->size = 2;
+    node = field->sub_node;
+    node->name = field->name;
+    node->proto_v = field->proto_v;
+    node->id = 0;
+    node->size = 2;
+    node->n_type = node_map;
 
-    f = field->sub_node->fields;
-    if (array[1] == state->atom_int32)          { f->type = field_int32; }
-    else if (array[1] == state->atom_int64)     { f->type = field_int64; }
-    else if (array[1] == state->atom_uint32)    { f->type = field_uint32; }
-    else if (array[1] == state->atom_uint64)    { f->type = field_uint64; }
-    else if (array[1] == state->atom_sint32)    { f->type = field_sint32; }
-    else if (array[1] == state->atom_sint64)    { f->type = field_sint64; }
-    else if (array[1] == state->atom_fixed32)   { f->type = field_fixed32; }
-    else if (array[1] == state->atom_fixed64)   { f->type = field_fixed64; }
-    else if (array[1] == state->atom_sfixed32)  { f->type = field_sfixed32; }
-    else if (array[1] == state->atom_sfixed64)  { f->type = field_sfixed64; }
-    else if (array[1] == state->atom_bool)      { f->type = field_bool; }
-    else if (array[1] == state->atom_double)    { f->type = field_double; }
-    else if (array[1] == state->atom_string)    { f->type = field_string; }
-    else {
-        return RET_ERROR;
-    }
-    f->fnum = 1;
-    f->rnum = 0;
-
-    f++;
-    f->fnum = 2;
-    f->rnum = 1;
-    if (parse_field_basic(env, array[2], f) != RET_OK) {
-        return RET_ERROR;
+    if (array[1] != state->atom_int32
+        && array[1] != state->atom_int64
+        && array[1] != state->atom_uint32
+        && array[1] != state->atom_uint64
+        && array[1] != state->atom_sint32
+        && array[1] != state->atom_sint64
+        && array[1] != state->atom_fixed32
+        && array[1] != state->atom_fixed64
+        && array[1] != state->atom_sfixed32
+        && array[1] != state->atom_sfixed64
+        && array[1] != state->atom_bool
+        && array[1] != state->atom_double
+        && array[1] != state->atom_string
+    ) {
+        raise_exception(env, array[1]);
     }
 
+    parse_msg_fields(env, enif_make_list2(env,
+        enif_make_tuple7(env,
+            state->atom_field,
+            make_atom(env, "k"),
+            enif_make_uint(env, 1),
+            enif_make_uint(env, 2),
+            array[1],
+            state->atom_optional,
+            enif_make_list(env, 0)
+        ),
+        enif_make_tuple7(env,
+            state->atom_field,
+            make_atom(env, "v"),
+            enif_make_uint(env, 2),
+            enif_make_uint(env, 3),
+            array[2],
+            state->atom_optional,
+            enif_make_list(env, 0)
+        )
+    ), node);
     return RET_OK;
 }
 
@@ -334,11 +356,11 @@ parse_field_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 ERL_NIF_TERM
 parse_occurrence_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t *state = (ep_state_t *) enif_priv_data(env);
 
     if (term == state->atom_required)       { field->o_type = occurrence_required; return RET_OK; }
     else if (term == state->atom_optional)  { field->o_type = occurrence_optional; return RET_OK; }
-    else if (term == state->atom_defaulty)  { field->o_type = occurrence_optional; return RET_OK; }
+    else if (term == state->atom_defaulty)  { field->o_type = occurrence_defaulty; return RET_OK; }
     else if (term == state->atom_repeated)  { field->o_type = occurrence_repeated; return RET_OK; }
 
     return RET_ERROR;
@@ -381,16 +403,16 @@ parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
     field = node->fields;
 
     if (!enif_is_list(env, term)) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array))) {
-            return_error(env, term);
+            raise_exception(env, term);
         }
         if (arity == 7 && array[0] == state->atom_field) {
             check_ret(ret, fill_msg_field(env, head, field));
         } else {
-            return_error(env, term);
+            raise_exception(env, term);
         }
         field++;
         term = tail;
@@ -408,23 +430,23 @@ fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
     ERL_NIF_TERM   *array, ret;
 
     if (!enif_get_tuple(env, term, &arity, to_const(array))) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (array[0] != make_atom(env, A_ONEOF)) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     field->name = array[1];
 
     if (!enif_get_uint(env, array[2], &(field->rnum))) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     (field->rnum)--;
 
     field->type = field_oneof;
 
     if (!enif_get_list_length(env, array[3], &len) || len == 0) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     field->sub_node = make_node(len, node_oneof);
 
@@ -439,39 +461,39 @@ fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 {
-    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
     ERL_NIF_TERM   *array;
 
     if (!enif_get_tuple(env, term, &arity, to_const(array))) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (arity != 7 || array[0] != state->atom_field) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (!enif_is_atom(env, array[1])) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     field->name = array[1];
 
     if (!enif_get_uint(env, array[2], &(field->fnum))
-            || !enif_get_uint(env, array[3], &(field->rnum))) {
-        return_error(env, term);
+        || !enif_get_uint(env, array[3], &(field->rnum))) {
+        raise_exception(env, term);
     }
     (field->rnum)--;
 
     if (parse_field_type(env, array[4], field) != RET_OK) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (parse_occurrence_type(env, array[5], field) != RET_OK) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     if (parse_opts(env, array[6], field) != RET_OK) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
 
     return RET_OK;
@@ -480,19 +502,19 @@ fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 ERL_NIF_TERM
 parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 {
-    ep_field_t        *field, *f;
-    int32_t         arity;
-    ep_state_t        *state = (ep_state_t *) enif_priv_data(env);
-    uint32_t		i, j;
-    ep_fnum_field_t   *ff;
-    ERL_NIF_TERM    head, tail, ret;
-    ERL_NIF_TERM   *array;
+    ep_field_t         *field, *f;
+    int32_t             arity;
+    ep_state_t         *state = (ep_state_t *) enif_priv_data(env);
+    uint32_t            i, j;
+    ep_fnum_field_t    *ff;
+    ERL_NIF_TERM        head, tail, ret;
+    ERL_NIF_TERM       *array;
 
     field = node->fields;
     node->v_size = 0;
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (!enif_get_tuple(env, head, &arity, to_const(array))) {
-            return_error(env, head);
+            raise_exception(env, head);
         }
 
         if (arity == 7 && array[0] == state->atom_field) {
@@ -502,7 +524,7 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
             check_ret(ret, fill_oneof_field(env, head, field));
             node->v_size += field->sub_node->size;
         } else {
-            return_error(env, head);
+            raise_exception(env, head);
         }
 
         field->proto_v = node->proto_v;
@@ -546,7 +568,7 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 }
 
 ERL_NIF_TERM
-parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM syn_list)
+parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v, ERL_NIF_TERM proto3_list)
 {
     ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity, msg_arity;
@@ -577,21 +599,21 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v
 
     *node = make_node(len, n_type);
     if (*node == NULL) {
-        return_exception(env, state->atom_error);
+        raise_exception(env, state->atom_error);
     }
 
     if (!enif_is_atom(env, msg_array[1])) {
-        return_error(env, term);
+        raise_exception(env, term);
     }
     (*node)->name = msg_array[1];
 
-    (*node)->proto_v = 2;
-    if (syn_list) {
-        while (enif_get_list_cell(env, syn_list, &head, &tail)) {
+    (*node)->proto_v = proto_v;
+    if (proto3_list) {
+        while (enif_get_list_cell(env, proto3_list, &head, &tail)) {
             if ((*node)->name == head) {
-                (*node)->proto_v = proto_v;
+                (*node)->proto_v = 3;
             }
-            syn_list = tail;
+            proto3_list = tail;
         }
     }
 
@@ -608,39 +630,55 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v
 }
 
 ERL_NIF_TERM
+link_sub_node(ErlNifEnv *env, ep_cache_t *cache, ep_field_t *field)
+{
+    ERL_NIF_TERM    ret;
+
+    if (field->type == field_msg || field->type == field_map || field->type == field_enum) {
+        if (field->sub_node == NULL) {
+            field->sub_node = get_node_by_name(field->sub_name, cache);
+            if (field->sub_node == NULL) {
+                raise_exception(env, field->sub_name);
+            }
+        } else {
+            check_ret(ret, do_prelink_nodes(env, cache, field->sub_node));
+        }
+    }
+    return RET_OK;
+}
+
+ERL_NIF_TERM
+do_prelink_nodes(ErlNifEnv *env, ep_cache_t *cache, ep_node_t *node)
+{
+    uint32_t		    i;
+    ep_field_t         *field;
+    ERL_NIF_TERM        ret;
+    ep_fnum_field_t    *fnum_field;
+
+    if (node->n_type == node_msg || node->n_type == node_map) {
+        for (i = 0; i < node->size; i++) {
+            field = (ep_field_t *) (node->fields) + i;
+            check_ret(ret, link_sub_node(env, cache, field));
+        }
+
+        for (i = 0; i < node->v_size; i++) {
+            fnum_field = (ep_fnum_field_t *) (node->v_fields) + i;
+            check_ret(ret, link_sub_node(env, cache, fnum_field->field));
+        }
+    }
+    return RET_OK;
+}
+
+ERL_NIF_TERM
 prelink_nodes(ErlNifEnv *env, ep_cache_t *cache)
 {
-    size_t              i;
-    ep_node_t          *node;
-    ep_field_t         *f;
-    uint32_t		    j;
-    ep_fnum_field_t    *ff;
+    size_t          i;
+    ep_node_t      *node;
+    ERL_NIF_TERM    ret;
 
     for (i = 0; i < cache->used; i++) {
         node = cache->names[i].node;
-        if (node->n_type == node_msg) {
-            for (j = 0; j < node->size; j++) {
-                f = (ep_field_t *) (node->fields) + j;
-                if (f->type == field_msg || f->type == field_enum) {
-                    f->sub_node = get_node_by_name(f->sub_name, cache);
-                    if (f->sub_node == NULL) {
-                        return_error(env, f->sub_name);
-                    }
-                }
-            }
-
-            ff = (ep_fnum_field_t *) (node->v_fields);
-            for (j = 0; j < node->v_size; j++) {
-                f = ff->field;
-                if (f->type == field_msg || f->type == field_enum) {
-                    f->sub_node = get_node_by_name(f->sub_name, cache);
-                    if (f->sub_node == NULL) {
-                        return_error(env, f->sub_name);
-                    }
-                }
-                ff++;
-            }
-        }
+        check_ret(ret, do_prelink_nodes(env, cache, node));
     }
 
     return RET_OK;
@@ -656,7 +694,7 @@ stack_ensure(ErlNifEnv *env, ep_stack_t *stack, ep_spot_t **spot)
         size = stack->size * 2;
         spots = _realloc(stack->spots, sizeof(ep_spot_t) * size);
         if (spots == NULL) {
-            return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
+            raise_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
         }
 
         *spot = spots + (*spot - stack->spots);
@@ -681,7 +719,7 @@ stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size)
 
     spots = _realloc(stack->spots, sizeof(ep_spot_t) * size);
     if (spots == NULL) {
-        return_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
+        raise_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
     }
 
     memset(spots + stack->size, 0x00, sizeof(ep_spot_t) * (size - stack->size));
@@ -703,7 +741,7 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
 
     stack = &(state->tdata[0].stack);
 
-    for (i = 0; i < cache->size; i++) {
+    for (i = 0; i < cache->used; i++) {
         spot = stack->spots;
         spot->type = spot_tuple;
         spot->node = cache->names[i].node;

@@ -41,13 +41,13 @@
 
 #if IS_DEBUG
 #define debug_out(fmt) do { \
-    fprintf(stderr, "%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__); \
+    printf("%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__); \
 } while (0)
 
 #define debug_step() printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__)
 
 #define debug(fmt, ...) do { \
-    fprintf(stderr, "%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__, __VA_ARGS__); \
+    printf("%s:%d:%s(): " fmt "\r\n", __FILE__, __LINE__, __func__, __VA_ARGS__); \
 } while (0)
 #else
 #define debug_step() do {} while(0)
@@ -55,17 +55,18 @@
 #endif
 
 #if IS_DEBUG
-#define return_exception(env, term) do {    \
+#define raise_exception(env, term) do { \
         printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__); \
-        return enif_raise_exception(env, term);    \
+        enif_raise_exception(env, term); \
+        return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term); \
 } while(0)
 
-#define return_error(env, term) do {    \
+#define return_error(env, term) do { \
         printf("%s:%d:%s()\r\n", __FILE__, __LINE__, __func__); \
-        return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term);    \
+        return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term); \
 } while(0)
 #else
-#define return_exception(env, term) return enif_raise_exception(env, term)
+#define raise_exception(env, term) return enif_raise_exception(env, term)
 
 #define return_error(env, term) return enif_make_tuple2(env, ((ep_state_t *) enif_priv_data(env))->atom_error, term)
 #endif
@@ -95,41 +96,42 @@ typedef struct ep_stack_s ep_stack_t;
 
 typedef enum {
     //field_unknown = INT_MIN,
-    field_unknown,
-    field_int32,
-    field_int64,
-    field_uint32,
-    field_uint64,
-    field_sint32,
-    field_sint64,
-    field_fixed32,
-    field_fixed64,
-    field_sfixed32,
-    field_sfixed64,
-    field_bool,
-    field_float,
-    field_double,
-    field_string,
-    field_bytes,
+    field_unknown = 0,
+    field_int32 = 1,
+    field_int64 = 2,
+    field_uint32 = 3,
+    field_uint64 = 4,
+    field_sint32 = 5,
+    field_sint64 = 6,
+    field_fixed32 = 7,
+    field_fixed64 = 8,
+    field_sfixed32 = 9,
+    field_sfixed64 = 10,
+    field_bool = 11,
+    field_float = 12,
+    field_double = 13,
+    field_string = 14,
+    field_bytes = 15,
 
-    field_enum,
-    field_msg,
-    field_map,
-    field_oneof
+    field_enum = 16,
+    field_msg = 17,
+    field_map = 18,
+    field_oneof = 19
 } field_type_e;
 
 typedef enum {
-    occurrence_required,
-    occurrence_optional,
-    occurrence_repeated
+    occurrence_required = 0,
+    occurrence_optional = 1,
+    occurrence_repeated = 2,
+    occurrence_defaulty = 3
 } occurrence_type_e;
 
 typedef enum {
-    node_unknown,
-    node_msg,
-    node_enum,
-    node_oneof,
-    node_map
+    node_unknown = 0,
+    node_msg = 1,
+    node_enum = 2,
+    node_oneof = 3,
+    node_map = 4
 } node_type_e;
 
 struct ep_stack_s {
@@ -146,7 +148,6 @@ struct ep_enc_s {
     char           *mem;
     size_t          size;
     ERL_NIF_TERM    result;
-    uint32_t        omit;
 };
 
 struct ep_dec_s {
@@ -203,11 +204,6 @@ struct ep_state_s {
         uint32_t    with_utf8;
         uint32_t    string_as_list;
     } opts;
-
-    ERL_NIF_TERM    integer_zero;
-    ERL_NIF_TERM    double_zero;
-    ERL_NIF_TERM    binary_nil;
-    ERL_NIF_TERM    nil;
 
     ERL_NIF_TERM    atom_ok;
     ERL_NIF_TERM    atom_error;
