@@ -17,10 +17,16 @@ C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
+    ARCH_SYS := $(shell uname -p)
+    ifeq ($(ARCH_SYS), arm)
+        ARCH_NAME := arm64
+    else
+        ARCH_NAME := x86_64
+    endif
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -arch x86_64 -finline-functions -Wall -Wmissing-prototypes
-	CXXFLAGS ?= -O3 -arch x86_64 -finline-functions -Wall
-	LDFLAGS ?= -arch x86_64 -flat_namespace -undefined suppress
+	CFLAGS ?= -O3 -std=c99 -arch $(ARCH_NAME) -finline-functions -Wall -Wmissing-prototypes
+	CXXFLAGS ?= -O3 -arch $(ARCH_NAME) -finline-functions -Wall
+	LDFLAGS ?= -arch $(ARCH_NAME) -flat_namespace -undefined suppress
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
