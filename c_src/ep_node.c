@@ -756,6 +756,12 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                     continue;
                 }
 
+                // skip over enums - they can't be nested
+                if (spot->node->n_type == node_enum) {
+                    spot->pos = spot->node->size;
+                    continue;
+                }
+
                 for (j = spot->pos; j < (size_t) (spot->node->size); j++) {
                     spot->pos = j + 1;
                     field = ((ep_field_t *) (spot->node->fields)) + j;
