@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["22", "23", "24"]
+        otp: ["23", "24", "25"]
       fail-fast: false
 
     container:
@@ -44,7 +44,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["22", "23", "24"]
+        otp: ["23", "24", "25"]
       fail-fast: false
 
     env:
