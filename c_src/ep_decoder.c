@@ -866,7 +866,11 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
             }
 
             case field_enum: {
-                *t++ = ((ep_enum_field_t *) field->sub_node->fields)->name;
+                ep_enum_field_t* efield = field->sub_node->v_fields;
+                int32_t target = 0;
+                ep_enum_field_t* zfield=bsearch(&target, efield, field->sub_node->v_size, sizeof(ep_enum_field_t), get_enum_compare_value);
+                if(zfield) *t++ = zfield->name;
+                else *t++ = ((ep_enum_field_t*)field->sub_node->fields)->name;
                 break;
             }
 
