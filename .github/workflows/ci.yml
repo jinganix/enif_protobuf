@@ -7,8 +7,6 @@ on:
   pull_request:
     branches:
       - master
-  schedule:
-    - cron: '0 10 * * *' # Once per day at 10am UTC
 
 jobs:
   ubuntu:
@@ -17,7 +15,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["22", "23", "24"]
+        otp: ["23", "24"]
       fail-fast: false
 
     container:
@@ -28,38 +26,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Checkout Proper
-        uses: actions/checkout@v2
-        with:
-          repository: proper-testing/proper
-          path: "./proper"
-      - name: Run test
-        run: |
-          make
-          make tests
-
-  macos:
-    name: Test on MacOS
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        otp: ["22", "23", "24"]
-      fail-fast: false
-
-    env:
-      ERL_LIBS: './'
-
-    steps:
-      - uses: actions/checkout@v2
-      - name: Brew Version Check
-        run: brew --version
-      - name: Keep Brew Fresh
-        run: brew update
-      - name: Install Erlang
-        run: brew install erlang@${{ matrix.otp }}
-      - name: Brew Link
-        run: brew link erlang@${{ matrix.otp }} --force
       - name: Checkout Proper
         uses: actions/checkout@v2
         with:

@@ -14,34 +14,29 @@ C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
 # System type and C compiler/flags.
-
+MACHINE_SYS := $(shell uname -m)
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
-    ARCH_SYS := $(shell uname -p)
-    ifeq ($(ARCH_SYS), arm)
-        ARCH_NAME := arm64
-    else
-        ARCH_NAME := x86_64
-    endif
 	CC ?= cc
-	CFLAGS ?= -O3 -std=c99 -arch $(ARCH_NAME) -finline-functions -Wall -Wmissing-prototypes
-	CXXFLAGS ?= -O3 -arch $(ARCH_NAME) -finline-functions -Wall
-	LDFLAGS ?= -arch $(ARCH_NAME) -flat_namespace -undefined suppress
+	CFLAGS ?= -O3 -std=c99 -arch $(MACHINE_SYS) -finline-functions -Wall -Wmissing-prototypes
+	CXXFLAGS ?= -O3 -arch $(MACHINE_SYS) -finline-functions -Wall
+	LDFLAGS = -arch $(MACHINE_SYS) -flat_namespace -undefined suppress -bundle
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
+	LDFLAGS = -shared
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
+	LDFLAGS = -shared
 endif
 
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lpthread
-LDFLAGS += -shared
 
 # Verbosity.
 

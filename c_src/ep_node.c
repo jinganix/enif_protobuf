@@ -9,6 +9,7 @@
 #define A_ONEOF         "gpb_oneof"
 #define A_PACKED        "packed"
 #define A_DEPRECATED    "deprecated"
+#define A_EBIN          "ebin"
 
 ERL_NIF_TERM
 fill_msg_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field);
@@ -53,9 +54,9 @@ ERL_NIF_TERM
 stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size);
 
 static int
-sort_compare_name_field(const void *a, const void *b)
+sort_compare_sub_name_field(const void *a, const void *b)
 {
-    return (int) (((ep_field_t *) a)->name - ((ep_field_t *) b)->name);
+    return (int) (((ep_field_t *) a)->sub_name - ((ep_field_t *) b)->sub_name);
 }
 
 static int
@@ -373,6 +374,8 @@ parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
     ERL_NIF_TERM   *array;
     ERL_NIF_TERM    head, tail;
 
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (head == make_atom(env, A_PACKED)) {
             field->packed = TRUE;
@@ -381,6 +384,10 @@ parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
             field->defaut_value = array[1];
         } else if (head == make_atom(env, A_DEPRECATED)) {
             /* skip */
+        }  else if (enif_get_tuple(env, head, &arity, to_const(array))
+                && arity == 2 && array[0] == make_atom(env, A_EBIN)
+                && array[1] == state->atom_true) {
+            field->ebin = TRUE;
         } else {
             return RET_ERROR;
         }
@@ -418,7 +425,7 @@ parse_oneof_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
         term = tail;
     }
 
-    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_name_field);
+    qsort(node->fields, node->size, sizeof(ep_field_t), sort_compare_sub_name_field);
     return RET_OK;
 }
 
@@ -814,6 +821,12 @@ int
 get_field_compare_name(const void *a, const void *b)
 {
     return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->name);
+}
+
+int
+get_field_compare_sub_name(const void *a, const void *b)
+{
+    return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->sub_name);
 }
 
 int

@@ -45,7 +45,7 @@ encode_msg(Msg, Defs, Opts) ->
     enif_protobuf:encode(Msg).
 
 skipping_unknown_varint_field_test() ->
-    #m1{a = undefined} =
+    #m1{a = 0} =
         decode_msg(<<32, 150, 1>>, %% field number 4 (not known), wire type = 0
             m1,
             [{{msg, m1}, [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,
@@ -53,7 +53,7 @@ skipping_unknown_varint_field_test() ->
                 opts = []}]}]).
 
 skipping_unknown_length_delimited_field_test() ->
-    #m1{a = undefined} =
+    #m1{a = 0} =
         decode_msg(<<34, 1, 1>>, %% field number 4 (not known), wire type = 2
             m1,
             [{{msg, m1}, [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,
@@ -61,7 +61,7 @@ skipping_unknown_length_delimited_field_test() ->
                 opts = []}]}]).
 
 skipping_unknown_64bit_field_test() ->
-    #m1{a = undefined} =
+    #m1{a = 0} =
         decode_msg(<<33, 0, 0, 0, 0, 0, 0, 0, 0>>, %% field number 4, wire type = 1
             m1,
             [{{msg, m1}, [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,
@@ -69,7 +69,7 @@ skipping_unknown_64bit_field_test() ->
                 opts = []}]}]).
 
 skipping_unknown_32bit_field_test() ->
-    #m1{a = undefined} =
+    #m1{a = 0} =
         decode_msg(<<37, 0, 0, 0, 0>>, %% field number 4, wire type = 5
             m1,
             [{{msg, m1}, [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,
@@ -108,7 +108,7 @@ skipping_groups() ->
     {x1, 38} = decode_msg(X1, x1, DefsO).
 
 decode_msg_simple_occurrence_test() ->
-    #m1{a = undefined} =
+    #m1{a = 0} =
         decode_msg(<<>>,
             m1,
             [{{msg, m1}, [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,
@@ -298,7 +298,7 @@ decoding_two_packed_chunks_of_varints_test() ->
     ok.
 
 decode_skips_nonpacked_fields_if_wiretype_mismatches_test() ->
-    #m1{a = undefined} =
+    #m1{a = false} =
         decode_msg(<<9, %% 9 means wiretype=bits64 instead of expected varint
             0:64>>,
             m1,
@@ -388,19 +388,19 @@ decoding_oneof_with_merge_test() ->
     Defs = [{{msg, m1}, [#gpb_oneof{
         name = a, rnum = #m1.a,
         fields = [#?gpb_field{name = x, fnum = 1, rnum = #m1.a,
-            type = {msg, m2}, occurrence = optional,
+            type = {msg, pb_m2}, occurrence = optional,
             opts = []},
             #?gpb_field{name = y, fnum = 2, rnum = #m1.a,
                 type = int32, occurrence = optional,
                 opts = []}]}]},
-        {{msg, m2}, [#?gpb_field{name = b, fnum = 1, rnum = #m2.b,
+        {{msg, pb_m2}, [#?gpb_field{name = b, fnum = 1, rnum = #m2.b,
             type = fixed32, occurrence = repeated}]}],
-    B1 = encode_msg(#m1{a = {x, #m2{b = [1]}}}, Defs),
-    B2 = encode_msg(#m1{a = {x, #m2{b = [2]}}}, Defs),
+    B1 = encode_msg(#m1{a = {pb_m2, [1]}}, Defs),
+    B2 = encode_msg(#m1{a = {pb_m2, [2]}}, Defs),
     B3 = encode_msg(#m1{a = {y, 150}}, Defs),
 
     %% Will get b=[1,2] since messages are merged
-    #m1{a = {x, #m2{b = [1, 2]}}} = decode_msg(<<B1/binary, B2/binary>>, m1, Defs),
+    #m1{a = {pb_m2, [1,2]}} = decode_msg(<<B1/binary, B2/binary>>, m1, Defs),
     %% Different oneof fields ==> no merge
     #m1{a = {y, 150}} = decode_msg(<<B1/binary, B3/binary>>, m1, Defs).
 

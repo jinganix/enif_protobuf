@@ -73,29 +73,27 @@ nested_oneof_test() ->
         {{msg, 'ChildLink'}, [
             #field{name = name, fnum = 2, rnum = 2, type = bytes, occurrence = required, opts = []}
         ]},
-        {{msg, 'FileChildren'}, [
+        {{msg, 'pb_FileChildren'}, [
             #field{name = child_links, fnum = 1, rnum = 2, type = {msg, 'ChildLink'}, occurrence = repeated, opts = []}
         ]},
-        {{msg, 'FuseResponse'}, [
+        {{msg, 'pb_FuseResponse'}, [
             #gpb_oneof{name = fuse_response, rnum = 2, fields = [
-                #field{name = file_children, fnum = 3, rnum = 2, type = {msg, 'FileChildren'}, occurrence = optional, opts = []},
+                #field{name = file_children, fnum = 3, rnum = 2, type = {msg, 'pb_FileChildren'}, occurrence = optional, opts = []},
                 #field{name = xattr, fnum = 13, rnum = 2, type = bytes, occurrence = optional, opts = []}
             ]}
         ]},
         {{msg, 'ServerMessage'}, [
             #gpb_oneof{name = message_body, rnum = 2, fields = [
-                #field{name = fuse_response, fnum = 15, rnum = 2, type = {msg, 'FuseResponse'}, occurrence = optional, opts = []}
+                #field{name = fuse_response, fnum = 15, rnum = 2, type = {msg, 'pb_FuseResponse'}, occurrence = optional, opts = []}
             ]}
         ]}
     ]),
     Msg = {'ServerMessage',
-        {fuse_response,
-            {'FuseResponse',
-                {file_children,
-                    {'FileChildren', [{'ChildLink', <<"1">>}]}
+            {'pb_FuseResponse',
+                    {'pb_FileChildren', [{'ChildLink', <<"1">>}]}
                 }
-            }
-        }
+
+
     },
     Bin = enif_protobuf:encode(Msg),
     Msg = enif_protobuf:decode(Bin, 'ServerMessage').

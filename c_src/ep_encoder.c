@@ -471,6 +471,65 @@ pack_bytes(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
     return RET_OK;
 }
 
+static inline int64_t
+to_integer(unsigned char *str, size_t size) {
+    int32_t c;
+    int32_t sign;
+    int32_t offset;
+    int64_t n;
+
+    if (str[0] == '-') {  // Handle negative integers
+        sign = -1;
+    } else {
+        sign = 0;
+    }
+
+    if (sign == -1) {  // Set starting position to convert
+        offset = 1;
+    }
+    else {
+        offset = 0;
+    }
+
+    n = 0;
+    for (c = offset; c < size; c++) {
+        n = n * 10 + str[c] - '0';
+    }
+
+    if (sign == -1) {
+        n = -n;
+    }
+
+    return n;
+}
+
+
+static inline int64_t
+pack_bin_as_int64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t* field)
+{
+    ErlNifBinary    bin;    // ErlNifBinary need not be released according to nif docs.
+    if (!enif_inspect_iolist_as_binary(env, term, &bin)) {
+        return_error(env, term);
+    }
+
+    int64_t     val;
+    val = to_integer(bin.data, bin.size);
+
+    if (val == 0 && field->proto_v == 3 && field->o_type == occurrence_defaulty) {
+        return RET_OK;
+    }
+
+    enc_ensure_default(env, enc);
+    if (val < 0) {
+        return_error(env, term);
+    } else {
+        do_pack_uint64(env, (uint64_t) val, enc);
+    }
+
+    return RET_OK;
+}
+
+
 static inline ERL_NIF_TERM
 pack_string_list(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 {
@@ -636,13 +695,33 @@ get_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node, ERL_NIF_TERM
         return NULL;
     }
 
-    if (arity != 2 || !enif_is_atom(env, array[0])) {
+    unsigned size = 100;
+    char buf[100];
+    char* output = get_atom(env, array[0], buf, size);
+
+    if (output == NULL) {
         return NULL;
     }
 
-    *out = array[1];
+    // We try and fetch the specific field that was set as part of the oneof field.
+    // oneof field values are set directly to the actual record if the value is a new message.
+    // If the value is one of the basic types - then it is a tuple with the variable name followed by the value.
+    // Here, we first check if the value is another message by checking if the prefix is set to pb_.
+    // If not then we expect the value to be one of the basic types and compare the variable name.
 
-    return bsearch(&(array[0]), node->fields, node->size, sizeof(ep_field_t), get_field_compare_name);
+    if(strncmp(buf, "pb_", 3) == 0) {
+        *out = term;
+        return bsearch((&(array[0])), node->fields, node->size, sizeof(ep_field_t), get_field_compare_sub_name);
+    } else {
+        *out = array[1];
+        for (int i = 0; i < node->size; ++i) {
+            ep_field_t *result = node->fields + i*sizeof(ep_field_t);
+            if (get_field_compare_name((&(array[0])), result) == 0) {
+                return result;
+            }
+        }
+        return NULL;
+    }
 }
 
 static ERL_NIF_TERM
@@ -672,7 +751,11 @@ pack_element_packed(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t
         break;
 
     case field_int64:
-        check_ret(ret, pack_int64(env, term, enc, field));
+        if (field->ebin == TRUE) {
+            check_ret(ret, pack_bin_as_int64(env, term, enc, field));
+        } else {
+            check_ret(ret, pack_int64(env, term, enc, field));
+        }
         break;
 
     case field_uint64:
@@ -746,7 +829,11 @@ pack_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 
     case field_int64:
         *(enc->sentinel) |= WIRE_TYPE_VARINT;
-        check_ret(ret, pack_int64(env, term, enc, field));
+        if (field->ebin == TRUE) {
+            check_ret(ret, pack_bin_as_int64(env, term, enc, field));
+        } else {
+            check_ret(ret, pack_int64(env, term, enc, field));
+        }
         break;
 
     case field_uint64:

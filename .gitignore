@@ -15,5 +15,4 @@ cmake-build-debug
 deps
 ebin
 log
-rebar.lock
 rebar3
