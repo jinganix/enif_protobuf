@@ -5,7 +5,7 @@
 #include "enif_protobuf.h"
 
 static inline ERL_NIF_TERM
-pass_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type);
+skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type);
 
 static inline ERL_NIF_TERM
 do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
@@ -592,112 +592,112 @@ unpack_field(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire
     switch (field->type) {
     case field_sint32:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_sint32(env, dec, term));
         break;
 
     case field_enum:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_enum(env, dec, term, field->sub_node));
         break;
 
     case field_int32:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_int32(env, dec, term));
         break;
 
     case field_uint32:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_uint32(env, dec, term));
         break;
 
     case field_sint64:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_sint64(env, dec, term));
         break;
 
     case field_int64:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_int64(env, dec, term));
         break;
 
     case field_uint64:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_uint64(env, dec, term));
         break;
 
     case field_bool:
         if (wire_type != WIRE_TYPE_VARINT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_boolean(env, dec, term));
         break;
 
     case field_sfixed32:
         if (wire_type != WIRE_TYPE_32BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_sfixed32(env, dec, term));
         break;
 
     case field_fixed32:
         if (wire_type != WIRE_TYPE_32BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_fixed32(env, dec, term));
         break;
 
     case field_float:
         if (wire_type != WIRE_TYPE_32BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_float(env, dec, term));
         break;
 
     case field_sfixed64:
         if (wire_type != WIRE_TYPE_64BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_sfixed64(env, dec, term));
         break;
 
     case field_fixed64:
         if (wire_type != WIRE_TYPE_64BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_fixed64(env, dec, term));
         break;
 
     case field_double:
         if (wire_type != WIRE_TYPE_64BIT) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_double(env, dec, term));
         break;
 
     case field_string:
         if (wire_type != WIRE_TYPE_LENGTH_PREFIXED) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_string(env, dec, term));
         break;
 
     case field_bytes:
         if (wire_type != WIRE_TYPE_LENGTH_PREFIXED) {
-            return pass_field(env, dec, wire_type);
+            return skip_field(env, dec, wire_type);
         }
         check_ret(ret, unpack_bytes(env, dec, term));
         break;
@@ -710,16 +710,15 @@ unpack_field(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire
 }
 
 static inline ERL_NIF_TERM
-pass_varint(ErlNifEnv *env, ep_dec_t *dec)
+skip_varint(ErlNifEnv *env, ep_dec_t *dec)
 {
-    uint32_t        shift = 0, left = 10;
+    uint32_t        left = 10;
 
     while (left && dec->p < dec->end) {
 
         if ((*(dec->p)++ & 0x80) == 0) {
             return RET_OK;
         }
-        shift += 7;
         left--;
     }
 
@@ -727,7 +726,7 @@ pass_varint(ErlNifEnv *env, ep_dec_t *dec)
 }
 
 static inline ERL_NIF_TERM
-pass_32bit(ErlNifEnv *env, ep_dec_t *dec)
+skip_32bit(ErlNifEnv *env, ep_dec_t *dec)
 {
     if (dec->p + 4 <= dec->end) {
         dec->p += 4;
@@ -738,7 +737,7 @@ pass_32bit(ErlNifEnv *env, ep_dec_t *dec)
 }
 
 static inline ERL_NIF_TERM
-pass_64bit(ErlNifEnv *env, ep_dec_t *dec)
+skip_64bit(ErlNifEnv *env, ep_dec_t *dec)
 {
     if (dec->p + 8 <= dec->end) {
         dec->p += 8;
@@ -749,7 +748,7 @@ pass_64bit(ErlNifEnv *env, ep_dec_t *dec)
 }
 
 static inline ERL_NIF_TERM
-pass_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
+skip_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
 {
     uint32_t        len;
     ERL_NIF_TERM    ret;
@@ -765,25 +764,25 @@ pass_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
 }
 
 static inline ERL_NIF_TERM
-pass_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type)
+skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type)
 {
     ERL_NIF_TERM        ret;
 
     switch (wire_type) {
     case WIRE_TYPE_VARINT:
-        check_ret(ret, pass_varint(env, dec));
+        check_ret(ret, skip_varint(env, dec));
         break;
 
     case WIRE_TYPE_64BIT:
-        check_ret(ret, pass_64bit(env, dec));
+        check_ret(ret, skip_64bit(env, dec));
         break;
 
     case WIRE_TYPE_LENGTH_PREFIXED:
-        check_ret(ret, pass_length_prefixed(env, dec));
+        check_ret(ret, skip_length_prefixed(env, dec));
         break;
 
     case WIRE_TYPE_32BIT:
-        check_ret(ret, pass_32bit(env, dec));
+        check_ret(ret, skip_32bit(env, dec));
         break;
 
     default:
@@ -995,7 +994,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
             check_ret(ret, unpack_tag(env, dec, &fnum, &wire_type));
             field = get_field(env, fnum, spot->node);
             if (field == NULL) {
-                check_ret(ret, pass_field(env, dec, wire_type));
+                check_ret(ret, skip_field(env, dec, wire_type));
 
             } else {
                 if (field->o_type == occurrence_repeated && is_packed(field, wire_type)) {
