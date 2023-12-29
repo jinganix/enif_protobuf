@@ -1,4 +1,4 @@
-[![CI](https://github.com/jg513/enif_protobuf/actions/workflows/ci.yml/badge.svg)](https://github.com/jg513/enif_protobuf/actions/workflows/ci.yml)
+[![CI](https://github.com/jinganix/enif_protobuf/actions/workflows/ci.yml/badge.svg)](https://github.com/jinganix/enif_protobuf/actions/workflows/ci.yml)
 
 # enif_protobuf
 A Google Protobuf implementation with enif (Erlang nif).

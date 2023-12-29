@@ -1,6 +1,3 @@
-
-%% Copyright (c) jg_513@163.com, https://github.com/jg513
-
 -module(ep_issue_27_tests).
 
 -compile(export_all).
@@ -22,7 +19,7 @@
     gnum = 0 :: non_neg_integer() | undefined % = 7, optional, 32 bits
 }).
 
-% https://github.com/jg513/enif_protobuf/issues/27
+% https://github.com/jinganix/enif_protobuf/issues/27
 get_proto_defs() ->
     [
         {syntax, "proto3"},

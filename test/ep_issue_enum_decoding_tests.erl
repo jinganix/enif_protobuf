@@ -4,7 +4,6 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
-
 issue_enum_decoding_test() ->
     PAtom = pre_existing_atom,
     Defs = [{syntax, "proto3"},

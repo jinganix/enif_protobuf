@@ -1,6 +1,3 @@
-
-%% Copyright (c) jg_513@163.com, https://github.com/jg513
-
 -module(ep_issue_19_tests).
 
 -compile(export_all).
@@ -10,7 +7,7 @@
 
 -record(m1, {a}).
 
-% https://github.com/jg513/enif_protobuf/issues/19
+% https://github.com/jinganix/enif_protobuf/issues/19
 issue_19_test() ->
     Defs = [
         {{msg, m1}, [

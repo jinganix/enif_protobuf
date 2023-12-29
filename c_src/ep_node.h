@@ -1,7 +1,3 @@
-/*
- * Copyright (c) jg_513@163.com, https://github.com/jg513
- */
-
 #ifndef __EP_NODE_H__
 #define __EP_NODE_H__
 
