@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
   schedule:
     - cron: '0 10 * * *' # Once per day at 10am UTC
 
@@ -17,7 +18,7 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["22", "23", "24"]
+        otp: ["24", "25", "26"]
       fail-fast: false
 
     container:
@@ -27,9 +28,9 @@ jobs:
       ERL_LIBS: './'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Checkout Proper
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: proper-testing/proper
           path: "./proper"
@@ -44,14 +45,14 @@ jobs:
 
     strategy:
       matrix:
-        otp: ["22", "23", "24"]
+        otp: ["24", "25", "26"]
       fail-fast: false
 
     env:
       ERL_LIBS: './'
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Brew Version Check
         run: brew --version
       - name: Keep Brew Fresh
@@ -61,7 +62,7 @@ jobs:
       - name: Brew Link
         run: brew link erlang@${{ matrix.otp }} --force
       - name: Checkout Proper
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: proper-testing/proper
           path: "./proper"
