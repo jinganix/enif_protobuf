@@ -12,60 +12,41 @@ on:
     - cron: '0 10 * * *' # Once per day at 10am UTC
 
 jobs:
-  ubuntu:
-    name: Test on Ubuntu
+  c-coverage:
+    name: C source coverage
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        otp: ["24", "25", "26"]
-      fail-fast: false
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install coverage tools
+        run: sudo apt-get update && sudo apt-get install -y gcovr
+      - name: Run C coverage check
+        run: make c-coverage-check
 
-    container:
-      image: erlang:${{ matrix.otp }}
+  test:
+    name: OTP ${{ matrix.otp }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        otp: ['28', '29']
 
     env:
       ERL_LIBS: './'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Checkout Proper
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: proper-testing/proper
           path: "./proper"
-      - name: Run test
-        run: |
-          make
-          make tests
-
-  macos:
-    name: Test on MacOS
-    runs-on: macos-latest
-
-    strategy:
-      matrix:
-        otp: ["24", "25", "26"]
-      fail-fast: false
-
-    env:
-      ERL_LIBS: './'
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Brew Version Check
-        run: brew --version
-      - name: Keep Brew Fresh
-        run: brew update
-      - name: Install Erlang
-        run: brew install erlang@${{ matrix.otp }}
-      - name: Brew Link
-        run: brew link erlang@${{ matrix.otp }} --force
-      - name: Checkout Proper
-        uses: actions/checkout@v4
+      - uses: erlef/setup-beam@v1.24.0
         with:
-          repository: proper-testing/proper
-          path: "./proper"
+          otp-version: ${{ matrix.otp }}
+          version-type: loose
       - name: Run test
         run: |
           make

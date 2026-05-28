@@ -1089,3 +1089,137 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
 
     return RET_OK;
 }
+
+#if defined(EPB_UNIT_TEST)
+static void
+ep_unit_dec_init(ep_dec_t *dec, const unsigned char *buf, size_t len)
+{
+    memset(dec, 0, sizeof(*dec));
+    dec->p = (char *) buf;
+    dec->end = (char *) buf + len;
+}
+
+int
+ep_unit_unpack_uint32(const unsigned char *buf, size_t len, uint32_t *out)
+{
+    ep_dec_t    dec;
+
+    ep_unit_dec_init(&dec, buf, len);
+    if (do_unpack_uint32(NULL, &dec, out) != RET_OK) {
+        return -1;
+    }
+    return 0;
+}
+
+int
+ep_unit_unpack_sint32(const unsigned char *buf, size_t len, int32_t *out)
+{
+    uint32_t    u;
+
+    if (ep_unit_unpack_uint32(buf, len, &u) != 0) {
+        return -1;
+    }
+    if (u & 1) {
+        *out = -(int32_t) (u >> 1) - 1;
+    } else {
+        *out = (int32_t) (u >> 1);
+    }
+    return 0;
+}
+
+int
+ep_unit_unpack_int32(const unsigned char *buf, size_t len, int32_t *out)
+{
+    ep_dec_t    dec;
+    uint32_t    u;
+
+    ep_unit_dec_init(&dec, buf, len);
+    if (do_unpack_uint32(NULL, &dec, &u) != RET_OK) {
+        return -1;
+    }
+    *out = (int32_t) u;
+    return 0;
+}
+
+int
+ep_unit_unpack_int64(const unsigned char *buf, size_t len, int64_t *out)
+{
+    ep_dec_t    dec;
+    int32_t     shift = 0, left = 10;
+    int64_t     val = 0;
+
+    ep_unit_dec_init(&dec, buf, len);
+    while (left && dec.p < dec.end) {
+        val |= ((uint64_t) (*(dec.p) & 0x7f) << shift);
+        if ((*(dec.p)++ & 0x80) == 0) {
+            *out = val;
+            return 0;
+        }
+        shift += 7;
+        left--;
+    }
+    return -1;
+}
+
+int
+ep_unit_unpack_uint64(const unsigned char *buf, size_t len, uint64_t *out)
+{
+    ep_dec_t    dec;
+    uint32_t    shift = 0, left = 10;
+    uint64_t    val = 0;
+
+    ep_unit_dec_init(&dec, buf, len);
+    while (left && dec.p < dec.end) {
+        val |= ((uint64_t) (*(dec.p) & 0x7f) << shift);
+        if ((*(dec.p)++ & 0x80) == 0) {
+            *out = val;
+            return 0;
+        }
+        shift += 7;
+        left--;
+    }
+    return -1;
+}
+
+int
+ep_unit_unpack_fixed32(const unsigned char *buf, size_t len, uint32_t *out)
+{
+    if (len < sizeof(uint32_t)) {
+        return -1;
+    }
+    *out = *(const uint32_t *) buf;
+    return 0;
+}
+
+int
+ep_unit_unpack_fixed64(const unsigned char *buf, size_t len, uint64_t *out)
+{
+    if (len < sizeof(uint64_t)) {
+        return -1;
+    }
+    *out = *(const uint64_t *) buf;
+    return 0;
+}
+
+int
+ep_unit_unpack_bool(const unsigned char *buf, size_t len, int *out)
+{
+    uint32_t    u;
+
+    if (ep_unit_unpack_uint32(buf, len, &u) != 0) {
+        return -1;
+    }
+    *out = (int) u;
+    return 0;
+}
+
+int
+ep_unit_unpack_double(const unsigned char *buf, size_t len, double *out)
+{
+    if (len < sizeof(double)) {
+        return -1;
+    }
+    *out = *(const double *) buf;
+    return 0;
+}
+#endif

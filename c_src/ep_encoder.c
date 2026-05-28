@@ -937,8 +937,10 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
                             raise_exception(env, term);
                         }
 
-                        (spot->array)++;
-                        arity--;
+                        if (field->type == field_msg) {
+                            (spot->array)++;
+                            arity--;
+                        }
 
                         spot->node = field->sub_node;
                         if (spot->node == NULL || arity != spot->node->size) {
@@ -1010,3 +1012,131 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
 
     return RET_OK;
 }
+
+#if defined(EPB_UNIT_TEST)
+static size_t
+ep_unit_pack_init(ep_enc_t *enc, unsigned char *buf, size_t cap)
+{
+    memset(enc, 0, sizeof(*enc));
+    enc->mem = (char *) buf;
+    enc->p = (char *) buf;
+    enc->end = (char *) buf + cap;
+    enc->size = cap;
+    return cap;
+}
+
+size_t
+ep_unit_pack_uint32(uint32_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    do_pack_uint32(NULL, val, &enc);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_sint32(int32_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    if (val < 0) {
+        val = (-val) * 2 - 1;
+    } else {
+        val = val * 2;
+    }
+    do_pack_uint32(NULL, (uint32_t) val, &enc);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_int32(int32_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    if (val < 0) {
+        *(enc.p)++ = val | 0x80;
+        *(enc.p)++ = (val >> 7) | 0x80;
+        *(enc.p)++ = (val >> 14) | 0x80;
+        *(enc.p)++ = (val >> 21) | 0x80;
+        *(enc.p)++ = (val >> 28) | 0x80;
+        *((int32_t *) (enc.p)) = 0xffffffff;
+        enc.p += sizeof(int32_t);
+        *(enc.p)++ = 0x01;
+    } else {
+        do_pack_uint32(NULL, (uint32_t) val, &enc);
+    }
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_int64(int64_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+    uint64_t    u;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    if (val < 0) {
+        u = (uint64_t) val;
+        do_pack_uint64(NULL, u, &enc);
+    } else {
+        do_pack_uint64(NULL, (uint64_t) val, &enc);
+    }
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_uint64(uint64_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    do_pack_uint64(NULL, val, &enc);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_fixed32(int32_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    *((int32_t *) (enc.p)) = val;
+    enc.p += sizeof(int32_t);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_fixed64(int64_t val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    *((int64_t *) (enc.p)) = val;
+    enc.p += sizeof(int64_t);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_bool(int val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    do_pack_uint32(NULL, val ? 1 : 0, &enc);
+    return (size_t) (enc.p - (char *) buf);
+}
+
+size_t
+ep_unit_pack_double(double val, unsigned char *buf, size_t cap)
+{
+    ep_enc_t    enc;
+
+    ep_unit_pack_init(&enc, buf, cap);
+    *((double *) (enc.p)) = val;
+    enc.p += sizeof(double);
+    return (size_t) (enc.p - (char *) buf);
+}
+#endif
