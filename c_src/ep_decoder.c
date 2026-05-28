@@ -1005,10 +1005,12 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->pos = field->rnum;
                         if (spot->field && spot->field->is_oneof) {
                             spot++;
+                            check_ret(ret, stack_ensure(env, stack, &spot));
                             spot->field = field;
                         } else {
                             spot->field = field;
                             spot++;
+                            check_ret(ret, stack_ensure(env, stack, &spot));
                         }
 
                         spot->node = field->sub_node;
@@ -1045,6 +1047,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         t_sp = spot;
                         t_sp->pos = field->rnum;
                         spot++;
+                        check_ret(ret, stack_ensure(env, stack, &spot));
 
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {

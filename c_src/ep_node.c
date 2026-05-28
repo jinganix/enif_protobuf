@@ -652,7 +652,7 @@ link_sub_node(ErlNifEnv *env, ep_cache_t *cache, ep_field_t *field)
             if (field->sub_node == NULL) {
                 raise_exception(env, field->sub_name);
             }
-        } else {
+        } else if (field->type == field_map) {
             check_ret(ret, do_prelink_nodes(env, cache, field->sub_node));
         }
     }
@@ -742,6 +742,18 @@ stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size)
     return RET_OK;
 }
 
+static int
+spot_path_contains_node(ep_spot_t *spot, ep_spot_t *start, ep_node_t *node)
+{
+    while (spot >= start) {
+        if (spot->node == node) {
+            return TRUE;
+        }
+        spot--;
+    }
+    return FALSE;
+}
+
 void
 stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
 {
@@ -779,6 +791,9 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                     field = ((ep_field_t *)(spot->node->fields)) + j;
                     if (field->o_type == occurrence_repeated) {
                         if (field->type == field_msg || field->type == field_map) {
+                            if (spot_path_contains_node(spot, stack->spots, field->sub_node)) {
+                                continue;
+                            }
                             spot++;
                             stack_ensure(env, stack, &spot);
 
@@ -788,6 +803,9 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                             break;
                         }
                     } else if (field->type == field_oneof || field->type == field_msg || field->type == field_map) {
+                        if (spot_path_contains_node(spot, stack->spots, field->sub_node)) {
+                            continue;
+                        }
                         spot++;
                         stack_ensure(env, stack, &spot);
 

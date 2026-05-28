@@ -903,6 +903,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
                     if (field->type == field_msg || field->type == field_map) {
 
                         spot++;
+                        check_ret(ret, stack_ensure(env, stack, &spot));
                         spot->node = field->sub_node;
                         if (spot->node == NULL) {
                             raise_exception(env, term);
@@ -934,6 +935,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
                         *(enc->sentinel) |= WIRE_TYPE_LENGTH_PREFIXED;
 
                         spot++;
+                        check_ret(ret, stack_ensure(env, stack, &spot));
 
                         if (!enif_get_tuple(env, term, &arity, to_const(spot->array))) {
                             raise_exception(env, term);
@@ -978,6 +980,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
             *(enc->sentinel) |= WIRE_TYPE_LENGTH_PREFIXED;
 
             spot++;
+            check_ret(ret, stack_ensure(env, stack, &spot));
             spot->node = (spot - 1)->node;
             spot->type = spot_tuple;
             spot->pos = 0;
