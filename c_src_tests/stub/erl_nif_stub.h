@@ -87,6 +87,7 @@ void enif_rwlock_rlock(ErlNifRWLock *lock);
 void enif_rwlock_runlock(ErlNifRWLock *lock);
 ErlNifTid enif_thread_self(void);
 
+void ep_test_reset_tls(void);
 int ep_test_init_state(ErlNifEnv *env, unsigned lock_n);
 int ep_test_build_int32_msg(ErlNifEnv *env, const char *msg_name, uint32_t fnum);
 void ep_test_prepare_decode_stack(ErlNifEnv *env);

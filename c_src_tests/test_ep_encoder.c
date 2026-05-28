@@ -57,7 +57,7 @@ test_encode_int32_field(void)
     TEST_ASSERT(ep_test_build_int32_msg(env, "m1", 1) == RET_OK);
 
     state = (ep_state_t *)enif_priv_data(env);
-    tdata = &state->tdata[0];
+    tdata = ep_get_tdata(state);
     tdata->enc.p = tdata->enc.mem;
 
     msg = enif_make_tuple2(env, enif_make_atom(env, "m1"), enif_make_int(env, 150));

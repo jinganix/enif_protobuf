@@ -1,5 +1,55 @@
 #include "enif_protobuf.h"
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#define EP_THREAD_LOCAL __declspec(thread)
+#else
+#define EP_THREAD_LOCAL __thread
+#endif
+
+static EP_THREAD_LOCAL ep_state_t *ep_tls_state;
+static EP_THREAD_LOCAL ep_tdata_t *ep_tls_tdata;
+
+static inline uint32_t
+ep_atomic_fetch_add_u32(uint32_t *p, uint32_t add)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    return __atomic_fetch_add(p, add, __ATOMIC_RELAXED);
+#elif defined(_MSC_VER)
+    return (uint32_t)_InterlockedExchangeAdd((volatile long *)p, (long)add);
+#else
+    uint32_t old = *p;
+    *p += add;
+    return old;
+#endif
+}
+
+ep_tdata_t *
+ep_get_tdata(ep_state_t *state)
+{
+    if (ep_tls_state == state && ep_tls_tdata != NULL) {
+        return ep_tls_tdata;
+    }
+
+    uint32_t slot = ep_atomic_fetch_add_u32(&state->slot_next, 1);
+    if (slot >= state->lock_n) {
+        slot = state->lock_n - 1;
+    }
+
+    ep_tls_state = state;
+    ep_tls_tdata = &state->tdata[slot];
+    return ep_tls_tdata;
+}
+
+#if defined(EPB_UNIT_TEST)
+void
+ep_test_reset_tls(void)
+{
+    ep_tls_state = NULL;
+    ep_tls_tdata = NULL;
+}
+#endif
+
 #if DEBUG_MEM
 size_t mem_total = 0;
 #endif // DEBUG_MEM
@@ -115,6 +165,10 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
         return ret;
     }
 
+    /*
+     * Swap cache under write lock so readers never observe a half-updated
+     * pointer and old cache lifetime stays valid for in-flight readers.
+     */
     enif_rwlock_rwlock(state->cache_lock);
 
     stack_ensure_all(env, cache);
@@ -166,7 +220,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         }
         state->lock_n = lock_n;
         state->cache_lock = enif_rwlock_create("CACHE_LOCK");
-        state->local_lock = enif_rwlock_create("LOCAL_LOCK");
+        state->slot_next = 0;
 
         /*
          * init state->tdata
@@ -189,18 +243,6 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
             enc = &(state->tdata[i].enc);
             enc->mem = _calloc(ENC_INIT_SIZE, 1);
             enc->size = ENC_INIT_SIZE;
-        }
-
-        /*
-         * init state->locks
-         */
-        state->locks = _calloc(sizeof(ep_lock_t), state->lock_n);
-        if (state->locks == NULL) {
-            return RET_ERROR;
-        }
-
-        for (i = 0; i < state->lock_n; i++) {
-            state->locks[i].tdata = &(state->tdata[i]);
         }
 
 #define EP_MAKE_ATOM(env, state, name) (state)->atom_##name = make_atom(env, #name)
@@ -287,90 +329,29 @@ static ERL_NIF_TERM
 purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ep_cache_t *old_cache = NULL;
 
     if (argc != 0) {
         return enif_make_badarg(env);
     }
 
-    if (state->cache != NULL) {
-        ep_cache_destroy(&(state->cache));
+    /* Same protection scope as load_cache: pointer swap + object lifetime. */
+    enif_rwlock_rwlock(state->cache_lock);
+    old_cache = state->cache;
+    state->cache = NULL;
+    enif_rwlock_rwunlock(state->cache_lock);
+    if (old_cache != NULL) {
+        ep_cache_destroy(&old_cache);
     }
 
     return state->atom_ok;
 }
 
-static int
-search_compare_lock(const void *a, const void *b)
-{
-    const ErlNifTid lhs = *((const ErlNifTid *)a);
-    const ErlNifTid rhs = ((const ep_lock_t *)b)->tid;
-    return (lhs > rhs) - (lhs < rhs);
-}
-
-static int
-sort_compare_lock(const void *a, const void *b)
-{
-    const ErlNifTid lhs = ((const ep_lock_t *)a)->tid;
-    const ErlNifTid rhs = ((const ep_lock_t *)b)->tid;
-    return (lhs > rhs) - (lhs < rhs);
-}
-
-static inline void
-clear_locks(ep_state_t *state, ErlNifTid *tid)
-{
-    uint32_t i;
-
-    enif_rwlock_rwlock(state->cache_lock);
-    if (state->lock_used == state->lock_n) {
-        for (i = 0; i < state->lock_n; i++) {
-            state->locks[i].tid = *tid;
-        }
-        state->lock_used = 0;
-    }
-    enif_rwlock_rwunlock(state->cache_lock);
-
-    return;
-}
-
-static ep_lock_t *
-get_lock(ep_state_t *state, ErlNifTid *tid)
-{
-    ep_lock_t *lock;
-
-    if (state->lock_used < state->lock_n) {
-        // debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
-        enif_rwlock_rlock(state->local_lock);
-        lock = bsearch(tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        enif_rwlock_runlock(state->local_lock);
-        if (lock == NULL) {
-            enif_rwlock_rwlock(state->local_lock);
-            if (state->lock_used == state->lock_n) {
-                clear_locks(state, tid);
-            } else {
-                lock = &state->locks[state->lock_used];
-                lock->tid = *tid;
-                qsort(state->locks, state->lock_used + 1, sizeof(ep_lock_t), sort_compare_lock);
-                (state->lock_used)++;
-            }
-            enif_rwlock_rwunlock(state->local_lock);
-        }
-    } else {
-        lock = bsearch(tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
-        if (lock == NULL) {
-            clear_locks(state, tid);
-        }
-    }
-
-    return lock;
-}
-
 static ERL_NIF_TERM
 encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_lock_t *lock;
     ep_tdata_t *tdata;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ErlNifTid tid;
     ERL_NIF_TERM ret;
 
     if (argc != 1 || !enif_is_tuple(env, argv[0])) {
@@ -381,20 +362,8 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
-    tid = enif_thread_self();
-    lock = get_lock(state, &tid);
-    if (lock == NULL) {
-        return encode_1(env, argc, argv);
-    }
-
+    tdata = ep_get_tdata(state);
     enif_rwlock_rlock(state->cache_lock);
-    if (lock->tid != tid) {
-        enif_rwlock_runlock(state->cache_lock);
-        return encode_1(env, argc, argv);
-    }
-
-    // debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
-    tdata = lock->tdata;
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;
 
@@ -410,10 +379,8 @@ static ERL_NIF_TERM
 decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     ep_node_t *node;
-    ep_lock_t *lock;
     ep_tdata_t *tdata;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ErlNifTid tid;
     ERL_NIF_TERM ret;
 
     if (argc != 2 || !enif_is_binary(env, argv[0]) || !enif_is_atom(env, argv[1])) {
@@ -424,20 +391,8 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
-    tid = enif_thread_self();
-    lock = get_lock(state, &tid);
-    if (lock == NULL) {
-        return decode_2(env, argc, argv);
-    }
-
+    tdata = ep_get_tdata(state);
     enif_rwlock_rlock(state->cache_lock);
-    if (lock->tid != tid) {
-        enif_rwlock_runlock(state->cache_lock);
-        return decode_2(env, argc, argv);
-    }
-    tdata = lock->tdata;
-
-    // debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
     if (!enif_inspect_binary(env, argv[0], &(tdata->dec.bin))) {
         enif_rwlock_runlock(state->cache_lock);
         raise_exception(env, argv[0]);

@@ -198,20 +198,19 @@ typedef struct ep_tdata_s {
     ep_dec_t dec;
 } ep_tdata_t;
 
-typedef struct ep_lock_s {
-    ErlNifTid tid;
-    ep_tdata_t *tdata;
-} ep_lock_t;
-
 struct ep_state_s {
     ep_cache_t *cache;
 
     uint32_t lock_n;
-    uint32_t lock_used;
-    ep_lock_t *locks;
+    uint32_t slot_next;
+    void *_pad_locks; /* layout: was ep_lock_t *locks */
     ep_tdata_t *tdata;
+    /*
+     * Guards state->cache pointer and cache object lifetime.
+     * Readers (encode/decode) take rlock; writers (load/purge) take rwlock.
+     */
     ErlNifRWLock *cache_lock;
-    ErlNifRWLock *local_lock;
+    void *_pad_local_lock; /* layout: was ErlNifRWLock *local_lock */
 
     struct opts_s {
         uint32_t with_utf8;
@@ -254,6 +253,8 @@ struct ep_state_s {
     ERL_NIF_TERM atom_defaulty;
     ERL_NIF_TERM atom_repeated;
 };
+
+ep_tdata_t *ep_get_tdata(ep_state_t *state);
 
 #define to_const(p) (const ERL_NIF_TERM **)(&(p))
 
