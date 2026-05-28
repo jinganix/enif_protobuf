@@ -17,6 +17,8 @@ issue_29_test() ->
     ],
     Msg = {a_message, [{"a", {non_trivial_item, 1}}]},
     Bin = <<10, 7, 10, 1, 97, 18, 2, 8, 1>>,
+    ok = enif_protobuf:set_opts([{string_as_list, true}, {with_utf8, true}]),
+    ok = enif_protobuf:load_cache(Defs),
     Bin = gpb:encode_msg(Msg, Defs),
     Bin = enif_protobuf:encode_msg(Msg, Defs),
     Msg = enif_protobuf:decode_msg(Bin, a_message, Defs).
