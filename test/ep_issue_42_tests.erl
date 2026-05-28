@@ -1,7 +1,5 @@
 -module(ep_issue_42_tests).
 
--compile(export_all).
-
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
