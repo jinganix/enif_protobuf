@@ -47,7 +47,7 @@ test_decode_int32_field(void)
     ep_test_prepare_decode_stack(env);
 
     state = (ep_state_t *)enif_priv_data(env);
-    tdata = &state->tdata[0];
+    tdata = ep_get_tdata(state);
     node = get_node_by_name(enif_make_atom(env, "m1"), state->cache);
 
     TEST_ASSERT(enif_alloc_binary(sizeof(wire), &tdata->dec.bin));

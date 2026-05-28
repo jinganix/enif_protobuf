@@ -44,7 +44,7 @@ test_string_as_list_decode(void)
                                                    enif_make_string(env, "abcd", ERL_NIF_LATIN1)),
                                   "t_sl") == RET_OK);
 
-    tdata = &st->tdata[0];
+    tdata = ep_get_tdata(st);
     TEST_ASSERT(enif_inspect_binary(env, tdata->enc.result, &bin));
     ep_test_set_opts(env, 0, 1);
     TEST_ASSERT(ep_test_decode_wire(env, "t_sl", bin.data, bin.size) == RET_OK);
@@ -127,7 +127,7 @@ test_skip_unknown_field(void)
                                   enif_make_tuple2(env, enif_make_atom(env, "t_skip"), enif_make_int(env, 5)),
                                   "t_skip") == RET_OK);
 
-    tdata = &st->tdata[0];
+    tdata = ep_get_tdata(st);
     TEST_ASSERT(enif_inspect_binary(env, tdata->enc.result, &bin));
     TEST_ASSERT(bin.size + 3 <= sizeof(buf));
     memcpy(buf, bin.data, bin.size);

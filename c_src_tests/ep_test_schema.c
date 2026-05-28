@@ -38,10 +38,10 @@ mk_field(ErlNifEnv *env, ep_state_t *st, const char *name, unsigned fnum,
 }
 
 static ERL_NIF_TERM
-mk_msg_def(ErlNifEnv *env, const char *name, ERL_NIF_TERM fields)
+mk_msg_def(ErlNifEnv *env, ep_state_t *st, const char *name, ERL_NIF_TERM fields)
 {
     return enif_make_tuple2(env,
-                            enif_make_tuple2(env, make_atom(env, "msg"), enif_make_atom(env, name)),
+                            enif_make_tuple2(env, st->atom_msg, enif_make_atom(env, name)),
                             fields);
 }
 
@@ -55,14 +55,16 @@ ep_test_mk_field(ErlNifEnv *env, ep_state_t *st, const char *name, unsigned fnum
 ERL_NIF_TERM
 ep_test_mk_msg_def(ErlNifEnv *env, const char *name, ERL_NIF_TERM fields)
 {
-    return mk_msg_def(env, name, fields);
+    ep_state_t *st = (ep_state_t *)enif_priv_data(env);
+
+    return mk_msg_def(env, st, name, fields);
 }
 
 static ERL_NIF_TERM
-mk_enum_def(ErlNifEnv *env, const char *name, ERL_NIF_TERM values)
+mk_enum_def(ErlNifEnv *env, ep_state_t *st, const char *name, ERL_NIF_TERM values)
 {
     return enif_make_tuple2(env,
-                            enif_make_tuple2(env, make_atom(env, "enum"), enif_make_atom(env, name)),
+                            enif_make_tuple2(env, st->atom_enum, enif_make_atom(env, name)),
                             values);
 }
 
@@ -106,10 +108,10 @@ ep_test_load_m1_cache(ErlNifEnv *env)
     fields[21] = enif_make_tuple4(env, make_atom(env, "gpb_oneof"), enif_make_atom(env, "oneof"),
                                   enif_make_uint(env, 22), list_from_terms(env, oneof_fields, 2));
 
-    cache_list[0] = mk_msg_def(env, "m1", list_from_terms(env, fields, 22));
-    cache_list[1] = mk_msg_def(env, "m2", list_from_terms(env, (ERL_NIF_TERM[]){mk_field(env, st, "int32", 1, 1, st->atom_int32, st->atom_optional)}, 1));
-    cache_list[2] = mk_msg_def(env, "m3", list_from_terms(env, (ERL_NIF_TERM[]){mk_field(env, st, "int32", 0, 1, st->atom_int32, st->atom_optional), mk_field(env, st, "int64", 1, 2, st->atom_int64, st->atom_optional)}, 2));
-    cache_list[3] = mk_enum_def(env, "e", list_from_terms(env, (ERL_NIF_TERM[]){enif_make_tuple2(env, enif_make_atom(env, "v1"), enif_make_int(env, 100)), enif_make_tuple2(env, enif_make_atom(env, "v2"), enif_make_int(env, -2)), enif_make_tuple2(env, enif_make_atom(env, "v3"), enif_make_int(env, -2)), enif_make_tuple3(env, st->atom_option, make_atom(env, "allow_alias"), st->atom_true)}, 4));
+    cache_list[0] = mk_msg_def(env, st, "m1", list_from_terms(env, fields, 22));
+    cache_list[1] = mk_msg_def(env, st, "m2", list_from_terms(env, (ERL_NIF_TERM[]){mk_field(env, st, "int32", 1, 1, st->atom_int32, st->atom_optional)}, 1));
+    cache_list[2] = mk_msg_def(env, st, "m3", list_from_terms(env, (ERL_NIF_TERM[]){mk_field(env, st, "int32", 0, 1, st->atom_int32, st->atom_optional), mk_field(env, st, "int64", 1, 2, st->atom_int64, st->atom_optional)}, 2));
+    cache_list[3] = mk_enum_def(env, st, "e", list_from_terms(env, (ERL_NIF_TERM[]){enif_make_tuple2(env, enif_make_atom(env, "v1"), enif_make_int(env, 100)), enif_make_tuple2(env, enif_make_atom(env, "v2"), enif_make_int(env, -2)), enif_make_tuple2(env, enif_make_atom(env, "v3"), enif_make_int(env, -2)), enif_make_tuple3(env, st->atom_option, make_atom(env, "allow_alias"), st->atom_true)}, 4));
 
     if (setjmp(ep_test_exception_jmp) != 0) {
         return RET_ERROR;
@@ -128,7 +130,7 @@ ep_test_load_single_field(ErlNifEnv *env, const char *msg_name, const char *fiel
     size_t n = 1;
 
     field = mk_field_opts(env, st, field_name, fnum, 1, type, occ, enif_make_list(env, 0));
-    cache_list[0] = mk_msg_def(env, msg_name, list_from_terms(env, &field, 1));
+    cache_list[0] = mk_msg_def(env, st, msg_name, list_from_terms(env, &field, 1));
     if (extra_defs != NULL) {
         for (size_t i = 0; i < extra_n && n < 8; i++) {
             cache_list[n++] = extra_defs[i];
@@ -192,7 +194,7 @@ ep_test_load_enum_cache(ErlNifEnv *env)
     ERL_NIF_TERM enum_def, field, ret;
 
     enum_def = enif_make_tuple2(env,
-                                enif_make_tuple2(env, make_atom(env, "enum"), enif_make_atom(env, "colors")),
+                                enif_make_tuple2(env, st->atom_enum, enif_make_atom(env, "colors")),
                                 enif_make_list2(env,
                                                 enif_make_tuple2(env, enif_make_atom(env, "red"), enif_make_int(env, 1)),
                                                 enif_make_tuple2(env, enif_make_atom(env, "blue"), enif_make_int(env, 2))));
@@ -216,7 +218,7 @@ ep_test_load_packed_field(ErlNifEnv *env, const char *msg_name, const char *fiel
     ERL_NIF_TERM field, cache_list[1], ret;
 
     field = mk_field(env, st, field_name, fnum, 1, type, st->atom_repeated);
-    cache_list[0] = mk_msg_def(env, msg_name, list_from_terms(env, &field, 1));
+    cache_list[0] = mk_msg_def(env, st, msg_name, list_from_terms(env, &field, 1));
 
     if (setjmp(ep_test_exception_jmp) != 0) {
         return RET_ERROR;
@@ -230,7 +232,7 @@ int
 ep_test_encode_only(ErlNifEnv *env, ERL_NIF_TERM msg)
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ep_tdata_t *tdata = &state->tdata[0];
+    ep_tdata_t *tdata = ep_get_tdata(state);
 
     ep_test_prepare_decode_stack(env);
     tdata->enc.p = tdata->enc.mem;
@@ -246,7 +248,7 @@ int
 ep_test_encode_only_small_buf(ErlNifEnv *env, ERL_NIF_TERM msg, size_t buf_size)
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ep_tdata_t *tdata = &state->tdata[0];
+    ep_tdata_t *tdata = ep_get_tdata(state);
     char *mem;
 
     if (buf_size < 32) {
@@ -284,7 +286,7 @@ ep_test_load_person_cache(ErlNifEnv *env)
     }
     ep_test_exception_active = 0;
     ret = ep_load_cache(env, list_from_terms(env,
-                                             (ERL_NIF_TERM[]){mk_msg_def(env, "Person", list_from_terms(env, fields, 3))}, 1));
+                                             (ERL_NIF_TERM[]){mk_msg_def(env, st, "Person", list_from_terms(env, fields, 3))}, 1));
     return (ret == st->atom_ok) ? RET_OK : RET_ERROR;
 }
 
@@ -405,7 +407,7 @@ int
 ep_test_decode_wire(ErlNifEnv *env, const char *msg_name, const unsigned char *buf, size_t len)
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ep_tdata_t *tdata = &state->tdata[0];
+    ep_tdata_t *tdata = ep_get_tdata(state);
     ep_node_t *node;
 
     ep_test_prepare_decode_stack(env);
@@ -433,7 +435,7 @@ int
 ep_test_roundtrip(ErlNifEnv *env, ERL_NIF_TERM msg, const char *msg_name)
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    ep_tdata_t *tdata = &state->tdata[0];
+    ep_tdata_t *tdata = ep_get_tdata(state);
     ep_node_t *node;
     ErlNifBinary bin;
 

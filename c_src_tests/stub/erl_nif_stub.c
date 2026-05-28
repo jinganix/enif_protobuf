@@ -120,7 +120,6 @@ ep_test_env_destroy(ErlNifEnv *env)
             }
             _free(env->state->tdata);
         }
-        _free(env->state->locks);
         _free(env->state);
     }
 
@@ -682,6 +681,7 @@ ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
     ep_state_t *state;
     uint32_t i;
 
+    ep_test_reset_tls();
     state = _calloc(sizeof(ep_state_t), 1);
     if (state == NULL) {
         return RET_ERROR;
@@ -689,7 +689,7 @@ ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
 
     state->lock_n = lock_n;
     state->cache_lock = enif_rwlock_create("CACHE_LOCK");
-    state->local_lock = enif_rwlock_create("LOCAL_LOCK");
+    state->slot_next = 0;
     state->tdata = _calloc(sizeof(ep_tdata_t), lock_n);
     if (state->tdata == NULL) {
         return RET_ERROR;
@@ -707,11 +707,6 @@ ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
         enc->size = ENC_INIT_SIZE;
         enc->p = enc->mem;
         enc->end = enc->mem + enc->size;
-    }
-
-    state->locks = _calloc(sizeof(ep_lock_t), lock_n);
-    for (i = 0; i < lock_n; i++) {
-        state->locks[i].tdata = &state->tdata[i];
     }
 
 #define EP_MAKE_ATOM(env, state, name) (state)->atom_##name = make_atom(env, #name)
