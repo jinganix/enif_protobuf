@@ -4,99 +4,81 @@ static inline ERL_NIF_TERM
 skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type);
 
 static inline ERL_NIF_TERM
-do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
+unpack_varint_u64(ErlNifEnv *env, ep_dec_t *dec, uint64_t *val)
 {
     uint32_t shift = 0, left = 10;
     uint64_t tmp = 0;
+    char *p = dec->p;
+    char *end = dec->end;
 
-    while (left && dec->p < dec->end) {
-
-        tmp |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            *val = (uint32_t)tmp;
+    while (left && p < end) {
+        uint8_t c = (uint8_t)(*p++);
+        tmp |= ((uint64_t)(c & 0x7f) << shift);
+        if ((c & 0x80) == 0) {
+            dec->p = p;
+            *val = tmp;
             return RET_OK;
         }
         shift += 7;
         left--;
     }
 
-    *val = 0;
     raise_exception(env, dec->term);
+}
+
+static inline ERL_NIF_TERM
+do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
+{
+    uint64_t tmp;
+    ERL_NIF_TERM ret;
+
+    check_ret(ret, unpack_varint_u64(env, dec, &tmp));
+    *val = (uint32_t)tmp;
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
 unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t shift = 0, left = 10;
+    ERL_NIF_TERM ret;
     uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
-
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            *term = enif_make_uint(env, (uint32_t)val);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
-    }
-
-    raise_exception(env, dec->term);
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    *term = enif_make_uint(env, (uint32_t)val);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
 unpack_sint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
     int64_t v;
-    uint32_t shift = 0, left = 10;
+    ERL_NIF_TERM ret;
     uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
-
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            if (val & 1) {
-                v = -(val >> 1) - 1;
-            } else {
-                v = (val >> 1);
-            }
-
-            if (val > 4294967295) {
-                v = val & 1 ? -2147483648 : 0;
-            }
-
-            *term = enif_make_int(env, v);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    if (val & 1) {
+        v = -(val >> 1) - 1;
+    } else {
+        v = (val >> 1);
     }
 
-    raise_exception(env, dec->term);
+    if (val > 4294967295) {
+        v = val & 1 ? -2147483648 : 0;
+    }
+
+    *term = enif_make_int(env, v);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
 unpack_int32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int32_t shift = 0, left = 10;
+    ERL_NIF_TERM ret;
     uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
-
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            *term = enif_make_int(env, (int)val);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
-    }
-
-    raise_exception(env, dec->term);
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    *term = enif_make_int(env, (int)val);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
@@ -134,72 +116,42 @@ unpack_sfixed32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_uint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t shift = 0, left = 10;
+    ERL_NIF_TERM ret;
     uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
-
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            *term = enif_make_uint64(env, (ErlNifUInt64)val);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
-    }
-
-    raise_exception(env, dec->term);
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    *term = enif_make_uint64(env, (ErlNifUInt64)val);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
 unpack_sint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
     int64_t v;
-    uint32_t shift = 0, left = 10;
+    ERL_NIF_TERM ret;
     uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    if (val & 1) {
+        v = -(int64_t)(val >> 1) - 1;
 
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            if (val & 1) {
-                v = -(int64_t)(val >> 1) - 1;
-
-            } else {
-                v = val >> 1;
-            }
-
-            *term = enif_make_int64(env, (ErlNifSInt64)v);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
+    } else {
+        v = val >> 1;
     }
 
-    raise_exception(env, dec->term);
+    *term = enif_make_int64(env, (ErlNifSInt64)v);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
 unpack_int64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int32_t shift = 0, left = 10;
-    int64_t val = 0;
+    ERL_NIF_TERM ret;
+    uint64_t val = 0;
 
-    while (left && dec->p < dec->end) {
-
-        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
-        if ((*(dec->p)++ & 0x80) == 0) {
-
-            *term = enif_make_int64(env, (ErlNifSInt64)val);
-            return RET_OK;
-        }
-        shift += 7;
-        left--;
-    }
-
-    raise_exception(env, dec->term);
+    check_ret(ret, unpack_varint_u64(env, dec, &val));
+    *term = enif_make_int64(env, (ErlNifSInt64)val);
+    return RET_OK;
 }
 
 static inline ERL_NIF_TERM
@@ -352,18 +304,14 @@ static inline ERL_NIF_TERM
 unpack_bytes(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
     uint32_t len;
-    ErlNifBinary bin;
+    ErlNifSInt64 offset;
     ERL_NIF_TERM ret;
 
     check_ret(ret, do_unpack_uint32(env, dec, &len));
 
     if (dec->p + len <= dec->end) {
-
-        if (!enif_alloc_binary(len, &bin)) {
-            raise_exception(env, dec->term);
-        }
-        memcpy(bin.data, dec->p, len);
-        *term = enif_make_binary(env, &bin);
+        offset = (ErlNifSInt64)(dec->p - (char *)(dec->bin.data));
+        *term = enif_make_sub_binary(env, dec->term, (size_t)offset, len);
         dec->p += len;
         return RET_OK;
     }
@@ -705,10 +653,12 @@ static inline ERL_NIF_TERM
 skip_varint(ErlNifEnv *env, ep_dec_t *dec)
 {
     uint32_t left = 10;
+    char *p = dec->p;
+    char *end = dec->end;
 
-    while (left && dec->p < dec->end) {
-
-        if ((*(dec->p)++ & 0x80) == 0) {
+    while (left && p < end) {
+        if ((((uint8_t)(*p++)) & 0x80) == 0) {
+            dec->p = p;
             return RET_OK;
         }
         left--;

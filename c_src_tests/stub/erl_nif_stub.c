@@ -411,6 +411,30 @@ enif_make_binary(ErlNifEnv *env, ErlNifBinary *bin)
 }
 
 ERL_NIF_TERM
+enif_make_sub_binary(ErlNifEnv *env, ERL_NIF_TERM bin_term, size_t pos, size_t size)
+{
+    ErlNifBinary src;
+    ErlNifBinary dst;
+    ERL_NIF_TERM term;
+
+    if (!enif_inspect_binary(env, bin_term, &src)) {
+        return 0;
+    }
+    if (pos > src.size || size > src.size - pos) {
+        return 0;
+    }
+    if (!enif_alloc_binary(size, &dst)) {
+        return 0;
+    }
+    if (size > 0) {
+        memcpy(dst.data, src.data + pos, size);
+    }
+    term = enif_make_binary(env, &dst);
+    enif_release_binary(&dst);
+    return term;
+}
+
+ERL_NIF_TERM
 enif_make_string(ErlNifEnv *env, const char *string, int flags)
 {
     ErlNifBinary bin;

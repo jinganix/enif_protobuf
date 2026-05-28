@@ -106,14 +106,14 @@ Benchmarks always use the Erlang version from [`.tool-versions`](.tool-versions)
 See [benchmarks/README.md](benchmarks/README.md) for all targets (maps, `d.proto`, gpb NIF, etc.).
 
 <!-- BENCHMARK_RESULTS_START -->
-Last run: 2026-05-28 06:01:24 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
+Last run: 2026-05-28 12:28:41 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
 
 | Test case | epb | gpb | gpb nif |
 |-----------|-----|-----|---------|
-| Small msgs · serialize | 307.88 | 165.33 | 62.18 |
-| Small msgs · deserialize | 274.72 | 282.08 | 92.00 |
-| Large msgs · serialize | 314.95 | 144.16 | 101.93 |
-| Large msgs · deserialize | 241.86 | 269.09 | 193.95 |
+| Small msgs · serialize | 314.54 | 171.77 | 67.63 |
+| Small msgs · deserialize | 573.06 | 300.92 | 92.97 |
+| Large msgs · serialize | 313.59 | 148.20 | 105.56 |
+| Large msgs · deserialize | 443.93 | 282.71 | 202.56 |
 
 Higher is better. Throughput in MB/s on serialized wire size.
 <!-- BENCHMARK_RESULTS_END -->
