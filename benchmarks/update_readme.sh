@@ -69,8 +69,11 @@ extract_mbps() {
 }
 
 format_mbps() {
-  # Keep table cells aligned while tolerating empty values.
-  printf "%6s" "$1"
+  if [ -z "$1" ]; then
+    echo "—"
+  else
+    echo "$1"
+  fi
 }
 
 gpb_s1=$(extract_mbps "$GPB_OUT" Message1 "Serialize")
@@ -102,20 +105,14 @@ gpb_nif_d2_f=$(format_mbps "$gpb_nif_d2")
 TABLE_BLOCK=$(cat <<EOF
 Last run: ${RUN_DATE} (standard Google benchmark messages; Erlang ${ERLANG_VERSION} per \`.tool-versions\`; machine ${MACHINE_MODEL})
 
-\`\`\`
-    [MB/s]        | epb    | gpb   | gpb nif |
-    --------------+--------+-------+---------+
-    small msgs    |        |       |         |
-      serialize   | ${epb_s1_f} | ${gpb_s1_f} | ${gpb_nif_s1_f} |
-      deserialize | ${epb_d1_f} | ${gpb_d1_f} | ${gpb_nif_d1_f} |
-    --------------+--------+-------+---------+
-    large msgs    |        |       |         |
-      serialize   | ${epb_s2_f} | ${gpb_s2_f} | ${gpb_nif_s2_f} |
-      deserialize | ${epb_d2_f} | ${gpb_d2_f} | ${gpb_nif_d2_f} |
-    --------------+--------+-------+---------+
-\`\`\`
+| Test case | epb | gpb | gpb nif |
+|-----------|-----|-----|---------|
+| Small msgs · serialize | ${epb_s1_f} | ${gpb_s1_f} | ${gpb_nif_s1_f} |
+| Small msgs · deserialize | ${epb_d1_f} | ${gpb_d1_f} | ${gpb_nif_d1_f} |
+| Large msgs · serialize | ${epb_s2_f} | ${gpb_s2_f} | ${gpb_nif_s2_f} |
+| Large msgs · deserialize | ${epb_d2_f} | ${gpb_d2_f} | ${gpb_nif_d2_f} |
 
-Higher is better. Throughput is measured on serialized wire size.
+Higher is better. Throughput in MB/s on serialized wire size.
 EOF
 )
 

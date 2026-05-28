@@ -14,7 +14,7 @@ typedef int64_t ErlNifSInt64;
 typedef uint64_t ErlNifUInt64;
 
 typedef struct {
-    size_t      size;
+    size_t size;
     unsigned char *data;
 } ErlNifBinary;
 
@@ -63,7 +63,7 @@ ERL_NIF_TERM enif_make_tuple2(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2);
 ERL_NIF_TERM enif_make_tuple3(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM e3);
 ERL_NIF_TERM enif_make_tuple4(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM e3, ERL_NIF_TERM e4);
 ERL_NIF_TERM enif_make_tuple7(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2,
-    ERL_NIF_TERM e3, ERL_NIF_TERM e4, ERL_NIF_TERM e5, ERL_NIF_TERM e6, ERL_NIF_TERM e7);
+                              ERL_NIF_TERM e3, ERL_NIF_TERM e4, ERL_NIF_TERM e5, ERL_NIF_TERM e6, ERL_NIF_TERM e7);
 ERL_NIF_TERM enif_make_tuple_from_array(ErlNifEnv *env, const ERL_NIF_TERM arr[], unsigned n);
 
 int enif_get_tuple(ErlNifEnv *env, ERL_NIF_TERM tpl, int *arity, const ERL_NIF_TERM **array);

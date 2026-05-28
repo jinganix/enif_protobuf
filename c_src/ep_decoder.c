@@ -6,15 +6,15 @@ skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type);
 static inline ERL_NIF_TERM
 do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
 {
-    uint32_t    shift = 0, left = 10;
-    uint64_t    tmp = 0;
+    uint32_t shift = 0, left = 10;
+    uint64_t tmp = 0;
 
     while (left && dec->p < dec->end) {
 
-        tmp |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        tmp |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *val = (uint32_t) tmp;
+            *val = (uint32_t)tmp;
             return RET_OK;
         }
         shift += 7;
@@ -28,15 +28,15 @@ do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
 static inline ERL_NIF_TERM
 unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t    shift = 0, left = 10;
-    uint64_t    val = 0;
+    uint32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_uint(env, (uint32_t) val);
+            *term = enif_make_uint(env, (uint32_t)val);
             return RET_OK;
         }
         shift += 7;
@@ -49,13 +49,13 @@ unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_sint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int64_t     v;
-    uint32_t    shift = 0, left = 10;
-    uint64_t    val = 0;
+    int64_t v;
+    uint32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
             if (val & 1) {
@@ -81,15 +81,15 @@ unpack_sint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_int32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int32_t     shift = 0, left = 10;
-    uint64_t    val = 0;
+    int32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_int(env, (int) val);
+            *term = enif_make_int(env, (int)val);
             return RET_OK;
         }
         shift += 7;
@@ -102,11 +102,11 @@ unpack_int32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_fixed32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t    val = 0;
+    uint32_t val = 0;
 
     if (dec->p + sizeof(uint32_t) <= dec->end) {
 
-        val = *(uint32_t *) (dec->p);
+        val = *(uint32_t *)(dec->p);
         *term = enif_make_uint(env, val);
         dec->p += sizeof(uint32_t);
         return RET_OK;
@@ -118,11 +118,11 @@ unpack_fixed32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_sfixed32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int32_t     val = 0;
+    int32_t val = 0;
 
     if (dec->p + sizeof(int32_t) <= dec->end) {
 
-        val = *(int32_t *) (dec->p);
+        val = *(int32_t *)(dec->p);
         *term = enif_make_int(env, val);
         dec->p += sizeof(int32_t);
         return RET_OK;
@@ -134,15 +134,15 @@ unpack_sfixed32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_uint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t    shift = 0, left = 10;
-    uint64_t    val = 0;
+    uint32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_uint64(env, (ErlNifUInt64) val);
+            *term = enif_make_uint64(env, (ErlNifUInt64)val);
             return RET_OK;
         }
         shift += 7;
@@ -155,23 +155,23 @@ unpack_uint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_sint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int64_t     v;
-    uint32_t    shift = 0, left = 10;
-    uint64_t    val = 0;
+    int64_t v;
+    uint32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
             if (val & 1) {
-                v = -(int64_t) (val >> 1) - 1;
+                v = -(int64_t)(val >> 1) - 1;
 
             } else {
                 v = val >> 1;
             }
 
-            *term = enif_make_int64(env, (ErlNifSInt64) v);
+            *term = enif_make_int64(env, (ErlNifSInt64)v);
             return RET_OK;
         }
         shift += 7;
@@ -184,15 +184,15 @@ unpack_sint64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_int64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int32_t     shift = 0, left = 10;
-    int64_t     val = 0;
+    int32_t shift = 0, left = 10;
+    int64_t val = 0;
 
     while (left && dec->p < dec->end) {
 
-        val |= ((uint64_t) (*(dec->p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec->p) & 0x7f) << shift);
         if ((*(dec->p)++ & 0x80) == 0) {
 
-            *term = enif_make_int64(env, (ErlNifSInt64) val);
+            *term = enif_make_int64(env, (ErlNifSInt64)val);
             return RET_OK;
         }
         shift += 7;
@@ -205,12 +205,12 @@ unpack_int64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_fixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint64_t        val;
+    uint64_t val;
 
     if (dec->p + sizeof(uint64_t) <= dec->end) {
 
-        val = *(uint64_t *) (dec->p);
-        *term = enif_make_uint64(env, (ErlNifUInt64) val);
+        val = *(uint64_t *)(dec->p);
+        *term = enif_make_uint64(env, (ErlNifUInt64)val);
         dec->p += sizeof(uint64_t);
         return RET_OK;
     }
@@ -221,12 +221,12 @@ unpack_fixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_sfixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    int64_t         val;
+    int64_t val;
 
     if (dec->p + sizeof(int64_t) <= dec->end) {
 
-        val = *(int64_t *) (dec->p);
-        *term = enif_make_int64(env, (ErlNifSInt64) val);
+        val = *(int64_t *)(dec->p);
+        *term = enif_make_int64(env, (ErlNifSInt64)val);
         dec->p += sizeof(int64_t);
         return RET_OK;
     }
@@ -237,7 +237,7 @@ unpack_sfixed64(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_boolean(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
 
     if (dec->p + sizeof(int8_t) <= dec->end) {
 
@@ -261,12 +261,12 @@ unpack_boolean(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_float(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    float           val;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    float val;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
 
     if (dec->p + sizeof(float) <= dec->end) {
 
-        val = *(float *) (dec->p);
+        val = *(float *)(dec->p);
 
         if (val == INFINITY) {
             *term = state->atom_infinity;
@@ -278,7 +278,7 @@ unpack_float(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
             *term = state->atom_nan;
 
         } else {
-            *term = enif_make_double(env, (double) val);
+            *term = enif_make_double(env, (double)val);
         }
 
         dec->p += sizeof(float);
@@ -291,12 +291,12 @@ unpack_float(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_double(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    double          val;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    double val;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
 
     if (dec->p + sizeof(double) <= dec->end) {
 
-        val = *(double *) (dec->p);
+        val = *(double *)(dec->p);
 
         if (val == INFINITY) {
             *term = state->atom_infinity;
@@ -321,8 +321,8 @@ unpack_double(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_utf8(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t    size = (uint32_t) (dec->end - dec->p);
-    uint32_t    val;
+    uint32_t size = (uint32_t)(dec->end - dec->p);
+    uint32_t val;
 
     if ((*(dec->p) & 0x80) == 0) {
         val = *(dec->p)++;
@@ -331,17 +331,12 @@ unpack_utf8(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
         val = ((dec->p[0] & 0x1F) << 6) | ((dec->p[1] & 0x3F));
         dec->p += 2;
 
-    } else if((dec->p[0] & 0xF0) == 0xE0 && size >= 3) {
-        val =  ((dec->p[0] & 0x0F) << 12)
-            | ((dec->p[1] & 0x3F) << 6)
-            | ((dec->p[2] & 0x3F));
+    } else if ((dec->p[0] & 0xF0) == 0xE0 && size >= 3) {
+        val = ((dec->p[0] & 0x0F) << 12) | ((dec->p[1] & 0x3F) << 6) | ((dec->p[2] & 0x3F));
         dec->p += 3;
 
     } else if ((dec->p[0] & 0xF8) == 0xF0 && size >= 4) {
-        val =  ((dec->p[0] & 0x07) << 18)
-            | ((dec->p[1] & 0x3F) << 12)
-            | ((dec->p[2] & 0x3F) << 6)
-            | ((dec->p[3] & 0x3F));
+        val = ((dec->p[0] & 0x07) << 18) | ((dec->p[1] & 0x3F) << 12) | ((dec->p[2] & 0x3F) << 6) | ((dec->p[3] & 0x3F));
         dec->p += 4;
 
     } else {
@@ -356,9 +351,9 @@ unpack_utf8(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_bytes(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    uint32_t        len;
-    ErlNifBinary    bin;
-    ERL_NIF_TERM    ret;
+    uint32_t len;
+    ErlNifBinary bin;
+    ERL_NIF_TERM ret;
 
     check_ret(ret, do_unpack_uint32(env, dec, &len));
 
@@ -379,10 +374,10 @@ unpack_bytes(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_string(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
-    char           *end;
-    uint32_t        len;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    ERL_NIF_TERM    ret, r_term = enif_make_int(env, 0);
+    char *end;
+    uint32_t len;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ERL_NIF_TERM ret, r_term = enif_make_int(env, 0);
 
     if (!(state->opts.string_as_list)) {
         return unpack_bytes(env, dec, term);
@@ -422,11 +417,11 @@ unpack_string(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 static inline ERL_NIF_TERM
 unpack_enum(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_node_t *node)
 {
-    int32_t             val;
-    ERL_NIF_TERM        ret;
-    ep_enum_field_t    *field;
+    int32_t val;
+    ERL_NIF_TERM ret;
+    ep_enum_field_t *field;
 
-    check_ret(ret, do_unpack_uint32(env, dec, (uint32_t *) &val));
+    check_ret(ret, do_unpack_uint32(env, dec, (uint32_t *)&val));
 
     field = bsearch(&val, node->v_fields, node->v_size, sizeof(ep_enum_field_t), get_enum_compare_value);
     if (field == NULL) {
@@ -440,7 +435,7 @@ unpack_enum(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_node_t *node)
 static inline ERL_NIF_TERM
 unpack_tag(ErlNifEnv *env, ep_dec_t *dec, uint32_t *tag, wire_type_e *wire_type)
 {
-    uint32_t        shift = 4, left = 4;
+    uint32_t shift = 4, left = 4;
 
     *wire_type = (*(dec->p) & 7);
 
@@ -466,37 +461,38 @@ unpack_tag(ErlNifEnv *env, ep_dec_t *dec, uint32_t *tag, wire_type_e *wire_type)
 }
 
 static inline int
-is_packed(ep_field_t *field, int wire_type) {
+is_packed(ep_field_t *field, int wire_type)
+{
     switch (field->type) {
-        case field_sint32:
-        case field_enum:
-        case field_int32:
-        case field_uint32:
-        case field_sint64:
-        case field_int64:
-        case field_uint64:
-        case field_bool:
-        case field_fixed64:
-        case field_sfixed64:
-        case field_double:
-        case field_fixed32:
-        case field_sfixed32:
-        case field_float:
-            if (wire_type == WIRE_TYPE_LENGTH_PREFIXED) {
-                return TRUE;
-            }
-        default:
-            return FALSE;
+    case field_sint32:
+    case field_enum:
+    case field_int32:
+    case field_uint32:
+    case field_sint64:
+    case field_int64:
+    case field_uint64:
+    case field_bool:
+    case field_fixed64:
+    case field_sfixed64:
+    case field_double:
+    case field_fixed32:
+    case field_sfixed32:
+    case field_float:
+        if (wire_type == WIRE_TYPE_LENGTH_PREFIXED) {
+            return TRUE;
+        }
+    default:
+        return FALSE;
     }
 }
 
 static ERL_NIF_TERM
 unpack_element_packed(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_field_t *field)
 {
-    char           *end_sentinel;
-    uint32_t        len;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    ERL_NIF_TERM    ret, head = state->atom_undefined;
+    char *end_sentinel;
+    uint32_t len;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ERL_NIF_TERM ret, head = state->atom_undefined;
 
     check_ret(ret, do_unpack_uint32(env, dec, &len));
 
@@ -582,7 +578,7 @@ unpack_element_packed(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_fiel
 static inline ERL_NIF_TERM
 unpack_field(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire_type, ep_field_t *field)
 {
-    ERL_NIF_TERM    ret;
+    ERL_NIF_TERM ret;
 
     *term = 0;
     switch (field->type) {
@@ -708,7 +704,7 @@ unpack_field(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, wire_type_e wire
 static inline ERL_NIF_TERM
 skip_varint(ErlNifEnv *env, ep_dec_t *dec)
 {
-    uint32_t        left = 10;
+    uint32_t left = 10;
 
     while (left && dec->p < dec->end) {
 
@@ -746,8 +742,8 @@ skip_64bit(ErlNifEnv *env, ep_dec_t *dec)
 static inline ERL_NIF_TERM
 skip_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
 {
-    uint32_t        len;
-    ERL_NIF_TERM    ret;
+    uint32_t len;
+    ERL_NIF_TERM ret;
 
     check_ret(ret, do_unpack_uint32(env, dec, &len));
 
@@ -762,7 +758,7 @@ skip_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
 static inline ERL_NIF_TERM
 skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type)
 {
-    ERL_NIF_TERM        ret;
+    ERL_NIF_TERM ret;
 
     switch (wire_type) {
     case WIRE_TYPE_VARINT:
@@ -791,7 +787,7 @@ skip_field(ErlNifEnv *env, ep_dec_t *dec, wire_type_e wire_type)
 static inline ep_field_t *
 get_field(ErlNifEnv *env, uint32_t fnum, ep_node_t *node)
 {
-    ep_fnum_field_t    *ff;
+    ep_fnum_field_t *ff;
 
     if (node->n_type == node_msg || node->n_type == node_map) {
         ff = bsearch(&fnum, node->v_fields, node->v_size, sizeof(ep_fnum_field_t), get_field_compare_fnum);
@@ -805,10 +801,10 @@ get_field(ErlNifEnv *env, uint32_t fnum, ep_node_t *node)
 static inline ERL_NIF_TERM
 fill_default(ErlNifEnv *env, ep_spot_t *spot)
 {
-    ep_field_t     *field;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    ERL_NIF_TERM   *t, *t_used_end;
-    ErlNifBinary    bin;
+    ep_field_t *field;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ERL_NIF_TERM *t, *t_used_end;
+    ErlNifBinary bin;
 
     t = spot->t_arr;
     *t++ = spot->node->name;
@@ -821,10 +817,7 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
         } else if (field->o_type == occurrence_repeated) {
             *t++ = enif_make_list(env, 0);
 
-        } else if (field->o_type == occurrence_required
-            || (field->proto_v == 3 && field->o_type == occurrence_defaulty)
-            || (spot->node->n_type == node_map))
-        {
+        } else if (field->o_type == occurrence_required || (field->proto_v == 3 && field->o_type == occurrence_defaulty) || (spot->node->n_type == node_map)) {
             switch (field->type) {
             case field_int32:
             case field_int64:
@@ -861,11 +854,13 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
             }
 
             case field_enum: {
-                ep_enum_field_t* efield = field->sub_node->v_fields;
+                ep_enum_field_t *efield = field->sub_node->v_fields;
                 int32_t target = 0;
-                ep_enum_field_t* zfield=bsearch(&target, efield, field->sub_node->v_size, sizeof(ep_enum_field_t), get_enum_compare_value);
-                if(zfield) *t++ = zfield->name;
-                else *t++ = ((ep_enum_field_t*)field->sub_node->fields)->name;
+                ep_enum_field_t *zfield = bsearch(&target, efield, field->sub_node->v_size, sizeof(ep_enum_field_t), get_enum_compare_value);
+                if (zfield)
+                    *t++ = zfield->name;
+                else
+                    *t++ = ((ep_enum_field_t *)field->sub_node->fields)->name;
                 break;
             }
 
@@ -885,15 +880,15 @@ fill_default(ErlNifEnv *env, ep_spot_t *spot)
 ERL_NIF_TERM
 decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
 {
-    int32_t         arity;
-    uint32_t        fnum, size, i, replaced = FALSE;
-    ep_dec_t       *dec;
-    ep_spot_t      *spot, *t_sp;
-    ep_field_t     *field = NULL, *map_field = NULL;
-    ep_stack_t     *stack;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    wire_type_e     wire_type;
-    ERL_NIF_TERM   *t, ret, head, tail, *t_used_end, term, *array;
+    int32_t arity;
+    uint32_t fnum, size, i, replaced = FALSE;
+    ep_dec_t *dec;
+    ep_spot_t *spot, *t_sp;
+    ep_field_t *field = NULL, *map_field = NULL;
+    ep_stack_t *stack;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    wire_type_e wire_type;
+    ERL_NIF_TERM *t, ret, head, tail, *t_used_end, term, *array;
 
     dec = &(tdata->dec);
     stack = &(tdata->stack);
@@ -909,6 +904,12 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
     spot->pos = 0;
     spot->end_sentinel = dec->end;
 
+    /*
+     * Iterative decoder:
+     * - stack spots track nested message/map contexts
+     * - each length-delimited sub-message tightens dec->end with a sentinel
+     * This avoids recursive calls and keeps allocations stable per scheduler.
+     */
     dec->result = 0;
     while (spot >= stack->spots) {
 
@@ -916,12 +917,10 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
             if (spot->node->n_type != node_map) {
                 t = spot->t_arr + 1;
                 t_used_end = spot->t_arr + spot->t_used;
-                field = (ep_field_t *) (spot->node->fields);
+                field = (ep_field_t *)(spot->node->fields);
 
                 while (t < t_used_end) {
-                    if (field->o_type == occurrence_required
-                        && field->type != field_oneof
-                        && *t == state->atom_undefined) {
+                    if (field->o_type == occurrence_required && field->type != field_oneof && *t == state->atom_undefined) {
                         raise_exception(env, dec->term);
                     }
 
@@ -935,12 +934,12 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
 
             spot->pos = 0;
             if (spot->field && spot->field->is_oneof) {
-                term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned) (spot->t_used));
+                term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned)(spot->t_used));
                 term = enif_make_tuple2(env, spot->field->name, term);
             } else if (spot->node && spot->node->n_type == node_map) {
-                term = enif_make_tuple_from_array(env, spot->t_arr + 1, (unsigned) (spot->t_used - 1));
+                term = enif_make_tuple_from_array(env, spot->t_arr + 1, (unsigned)(spot->t_used - 1));
             } else {
-                term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned) (spot->t_used));
+                term = enif_make_tuple_from_array(env, spot->t_arr, (unsigned)(spot->t_used));
             }
             spot->field = NULL;
             t_sp = spot;
@@ -952,7 +951,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
 
             if (enif_is_list(env, spot->t_arr[spot->pos])) {
                 if (spot->field->type == field_map) {
-                    map_field = (ep_field_t *) spot->field->sub_node->fields;
+                    map_field = (ep_field_t *)spot->field->sub_node->fields;
                     if (map_field[1].type == field_msg && t_sp->t_arr[2] == state->atom_undefined) {
                         raise_exception(env, spot->node->name);
                     }
@@ -1020,6 +1019,9 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->type = spot_tuple;
 
                         check_ret(ret, do_unpack_uint32(env, dec, &size));
+                        if (size > (uint32_t)(dec->end - dec->p)) {
+                            raise_exception(env, dec->term);
+                        }
                         spot->end_sentinel = dec->p + size;
                         dec->end = spot->end_sentinel;
 
@@ -1052,16 +1054,17 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->type = spot_tuple;
 
                         check_ret(ret, do_unpack_uint32(env, dec, &size));
+                        if (size > (uint32_t)(dec->end - dec->p)) {
+                            raise_exception(env, dec->term);
+                        }
                         spot->end_sentinel = dec->p + size;
                         dec->end = spot->end_sentinel;
 
                         spot->t_used = spot->node->size + 1;
                         if (field->is_oneof && enif_is_tuple(env, t_sp->t_arr[t_sp->pos])) {
-                            if (enif_get_tuple(env, t_sp->t_arr[t_sp->pos], &arity, to_const(array))
-                                && field->name == array[0]
-                                && enif_get_tuple(env, array[1], &arity, to_const(array))) {
+                            if (enif_get_tuple(env, t_sp->t_arr[t_sp->pos], &arity, to_const(array)) && field->name == array[0] && enif_get_tuple(env, array[1], &arity, to_const(array))) {
 
-                                for (i = 0; i < (uint32_t) arity; i++) {
+                                for (i = 0; i < (uint32_t)arity; i++) {
                                     spot->t_arr[i] = array[i];
                                 }
                             }
@@ -1083,7 +1086,6 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                     }
                 }
             }
-
         }
     }
 
@@ -1095,14 +1097,14 @@ static void
 ep_unit_dec_init(ep_dec_t *dec, const unsigned char *buf, size_t len)
 {
     memset(dec, 0, sizeof(*dec));
-    dec->p = (char *) buf;
-    dec->end = (char *) buf + len;
+    dec->p = (char *)buf;
+    dec->end = (char *)buf + len;
 }
 
 int
 ep_unit_unpack_uint32(const unsigned char *buf, size_t len, uint32_t *out)
 {
-    ep_dec_t    dec;
+    ep_dec_t dec;
 
     ep_unit_dec_init(&dec, buf, len);
     if (do_unpack_uint32(NULL, &dec, out) != RET_OK) {
@@ -1114,15 +1116,15 @@ ep_unit_unpack_uint32(const unsigned char *buf, size_t len, uint32_t *out)
 int
 ep_unit_unpack_sint32(const unsigned char *buf, size_t len, int32_t *out)
 {
-    uint32_t    u;
+    uint32_t u;
 
     if (ep_unit_unpack_uint32(buf, len, &u) != 0) {
         return -1;
     }
     if (u & 1) {
-        *out = -(int32_t) (u >> 1) - 1;
+        *out = -(int32_t)(u >> 1) - 1;
     } else {
-        *out = (int32_t) (u >> 1);
+        *out = (int32_t)(u >> 1);
     }
     return 0;
 }
@@ -1130,27 +1132,27 @@ ep_unit_unpack_sint32(const unsigned char *buf, size_t len, int32_t *out)
 int
 ep_unit_unpack_int32(const unsigned char *buf, size_t len, int32_t *out)
 {
-    ep_dec_t    dec;
-    uint32_t    u;
+    ep_dec_t dec;
+    uint32_t u;
 
     ep_unit_dec_init(&dec, buf, len);
     if (do_unpack_uint32(NULL, &dec, &u) != RET_OK) {
         return -1;
     }
-    *out = (int32_t) u;
+    *out = (int32_t)u;
     return 0;
 }
 
 int
 ep_unit_unpack_int64(const unsigned char *buf, size_t len, int64_t *out)
 {
-    ep_dec_t    dec;
-    int32_t     shift = 0, left = 10;
-    int64_t     val = 0;
+    ep_dec_t dec;
+    int32_t shift = 0, left = 10;
+    int64_t val = 0;
 
     ep_unit_dec_init(&dec, buf, len);
     while (left && dec.p < dec.end) {
-        val |= ((uint64_t) (*(dec.p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec.p) & 0x7f) << shift);
         if ((*(dec.p)++ & 0x80) == 0) {
             *out = val;
             return 0;
@@ -1164,13 +1166,13 @@ ep_unit_unpack_int64(const unsigned char *buf, size_t len, int64_t *out)
 int
 ep_unit_unpack_uint64(const unsigned char *buf, size_t len, uint64_t *out)
 {
-    ep_dec_t    dec;
-    uint32_t    shift = 0, left = 10;
-    uint64_t    val = 0;
+    ep_dec_t dec;
+    uint32_t shift = 0, left = 10;
+    uint64_t val = 0;
 
     ep_unit_dec_init(&dec, buf, len);
     while (left && dec.p < dec.end) {
-        val |= ((uint64_t) (*(dec.p) & 0x7f) << shift);
+        val |= ((uint64_t)(*(dec.p) & 0x7f) << shift);
         if ((*(dec.p)++ & 0x80) == 0) {
             *out = val;
             return 0;
@@ -1187,7 +1189,7 @@ ep_unit_unpack_fixed32(const unsigned char *buf, size_t len, uint32_t *out)
     if (len < sizeof(uint32_t)) {
         return -1;
     }
-    *out = *(const uint32_t *) buf;
+    *out = *(const uint32_t *)buf;
     return 0;
 }
 
@@ -1197,19 +1199,19 @@ ep_unit_unpack_fixed64(const unsigned char *buf, size_t len, uint64_t *out)
     if (len < sizeof(uint64_t)) {
         return -1;
     }
-    *out = *(const uint64_t *) buf;
+    *out = *(const uint64_t *)buf;
     return 0;
 }
 
 int
 ep_unit_unpack_bool(const unsigned char *buf, size_t len, int *out)
 {
-    uint32_t    u;
+    uint32_t u;
 
     if (ep_unit_unpack_uint32(buf, len, &u) != 0) {
         return -1;
     }
-    *out = (int) u;
+    *out = (int)u;
     return 0;
 }
 
@@ -1219,7 +1221,7 @@ ep_unit_unpack_double(const unsigned char *buf, size_t len, double *out)
     if (len < sizeof(double)) {
         return -1;
     }
-    *out = *(const double *) buf;
+    *out = *(const double *)buf;
     return 0;
 }
 #endif

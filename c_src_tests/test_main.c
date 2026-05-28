@@ -17,7 +17,7 @@ int run_test_coverage_exhaustive(void);
 int
 main(void)
 {
-    int             failed = 0;
+    int failed = 0;
 
     printf("test_ep_cache\n");
     if (run_test_ep_cache() != 0) {

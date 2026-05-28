@@ -5,18 +5,18 @@ static int
 rt_scalar(ErlNifEnv *env, const char *msg, ERL_NIF_TERM val)
 {
     return ep_test_roundtrip(env,
-        enif_make_tuple2(env, enif_make_atom(env, msg), val), msg);
+                             enif_make_tuple2(env, enif_make_atom(env, msg), val), msg);
 }
 
 static int
 test_scalar_types(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ep_state_t     *st;
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
-    st = (ep_state_t *) enif_priv_data(env);
+    st = (ep_state_t *)enif_priv_data(env);
 
 #define LOAD1(name, type) TEST_ASSERT(ep_test_load_single_field(env, name, "f", 1, type, st->atom_optional, NULL, 0) == RET_OK)
 
@@ -77,7 +77,7 @@ test_scalar_types(void)
 static int
 test_enum_type(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
+    ErlNifEnv *env = ep_test_env_create();
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
@@ -90,7 +90,7 @@ test_enum_type(void)
 static int
 test_nested_msg(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
+    ErlNifEnv *env = ep_test_env_create();
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
@@ -103,16 +103,16 @@ test_nested_msg(void)
 static int
 test_repeated_packed(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ep_state_t     *st;
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
-    st = (ep_state_t *) enif_priv_data(env);
+    st = (ep_state_t *)enif_priv_data(env);
 
     TEST_ASSERT(ep_test_load_packed_field(env, "t_rep", "f", 1, st->atom_int32) == RET_OK);
     TEST_ASSERT(rt_scalar(env, "t_rep",
-        enif_make_list(env, 3, enif_make_int(env, 1), enif_make_int(env, 2), enif_make_int(env, 3))) == RET_OK);
+                          enif_make_list(env, 3, enif_make_int(env, 1), enif_make_int(env, 2), enif_make_int(env, 3))) == RET_OK);
 
     ep_test_env_destroy(env);
     return 0;

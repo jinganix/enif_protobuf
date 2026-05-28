@@ -4,50 +4,50 @@
 #include "enif_protobuf.h"
 
 struct ep_enum_field_s {
-    ERL_NIF_TERM    name;
-    int32_t         value;
-    uint32_t        proto_v;
+    ERL_NIF_TERM name;
+    int32_t value;
+    uint32_t proto_v;
 };
 
 struct ep_field_s {
-    ERL_NIF_TERM        name;
-    occurrence_type_e   o_type;
-    field_type_e        type;
-    ep_node_t          *sub_node;
-    ERL_NIF_TERM        sub_name;
-    ERL_NIF_TERM        defaut_value;
-    uint32_t            id;
-    uint32_t            fnum;
-    uint32_t            rnum;
-    uint32_t            proto_v;
-    uint32_t            is_oneof;
-    uint32_t            packed;
+    ERL_NIF_TERM name;
+    occurrence_type_e o_type;
+    field_type_e type;
+    ep_node_t *sub_node;
+    ERL_NIF_TERM sub_name;
+    ERL_NIF_TERM defaut_value;
+    uint32_t id;
+    uint32_t fnum;
+    uint32_t rnum;
+    uint32_t proto_v;
+    uint32_t is_oneof;
+    uint32_t packed;
 };
 
 struct ep_fnum_field_s {
-    uint32_t        fnum;
-    ep_field_t     *field;
+    uint32_t fnum;
+    ep_field_t *field;
 };
 
 struct ep_node_s {
-    node_type_e     n_type;
-    ERL_NIF_TERM    name;
-    uint32_t        id;
-    uint32_t        proto_v;
-    uint32_t        size;
-    uint32_t        v_size;
-    void           *fields;
-    void           *v_fields;
+    node_type_e n_type;
+    ERL_NIF_TERM name;
+    uint32_t id;
+    uint32_t proto_v;
+    uint32_t size;
+    uint32_t v_size;
+    void *fields;
+    void *v_fields;
 };
 
 struct ep_node_id_s {
-    uint32_t        id;
-    ep_node_t      *node;
+    uint32_t id;
+    ep_node_t *node;
 };
 
 struct ep_node_name_s {
-    ERL_NIF_TERM    name;
-    ep_node_t      *node;
+    ERL_NIF_TERM name;
+    ep_node_t *node;
 };
 
 void

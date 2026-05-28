@@ -3,7 +3,7 @@
 
 #include "enif_protobuf.h"
 
-#define MAX_UINT64_ENCODED_SIZE     10
+#define MAX_UINT64_ENCODED_SIZE 10
 
 enum {
     spot_default,
@@ -36,8 +36,8 @@ static inline int32_t
 swap_int32(int32_t value)
 {
     return ((value & 0x000000ff) << 24) |
-           ((value & 0x0000ff00) <<  8) |
-           ((value & 0x00ff0000) >>  8) |
+           ((value & 0x0000ff00) << 8) |
+           ((value & 0x00ff0000) >> 8) |
            ((value >> 24) & 0x000000ff);
 }
 
@@ -45,8 +45,8 @@ static inline uint32_t
 swap_uint32(uint32_t value)
 {
     return ((value & 0x000000ff) << 24) |
-           ((value & 0x0000ff00) <<  8) |
-           ((value & 0x00ff0000) >>  8) |
+           ((value & 0x0000ff00) << 8) |
+           ((value & 0x00ff0000) >> 8) |
            (value >> 24);
 }
 
@@ -56,8 +56,8 @@ swap_int64(int64_t value)
     return ((value & 0x00000000000000ffUL) << 56) |
            ((value & 0x000000000000ff00UL) << 40) |
            ((value & 0x0000000000ff0000UL) << 24) |
-           ((value & 0x00000000ff000000UL) <<  8) |
-           ((value & 0x000000ff00000000UL) >>  8) |
+           ((value & 0x00000000ff000000UL) << 8) |
+           ((value & 0x000000ff00000000UL) >> 8) |
            ((value & 0x0000ff0000000000UL) >> 24) |
            ((value & 0x00ff000000000000UL) >> 40) |
            ((value >> 56) & 0x00000000000000ffUL);
@@ -69,8 +69,8 @@ swap_uint64(uint64_t value)
     return ((value & 0x00000000000000ffUL) << 56) |
            ((value & 0x000000000000ff00UL) << 40) |
            ((value & 0x0000000000ff0000UL) << 24) |
-           ((value & 0x00000000ff000000UL) <<  8) |
-           ((value & 0x000000ff00000000UL) >>  8) |
+           ((value & 0x00000000ff000000UL) << 8) |
+           ((value & 0x000000ff00000000UL) >> 8) |
            ((value & 0x0000ff0000000000UL) >> 24) |
            ((value & 0x00ff000000000000UL) >> 40) |
            (value >> 56);

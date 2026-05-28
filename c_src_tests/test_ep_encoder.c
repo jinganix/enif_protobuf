@@ -20,9 +20,9 @@ test_swap_uint64(void)
 static int
 test_pack_uint32_varint(void)
 {
-    unsigned char   buf[16];
-    size_t          n;
-    uint32_t        out;
+    unsigned char buf[16];
+    size_t n;
+    uint32_t out;
 
     n = ep_unit_pack_uint32(0, buf, sizeof(buf));
     TEST_ASSERT_EQ(n, 1);
@@ -45,18 +45,18 @@ test_pack_uint32_varint(void)
 static int
 test_encode_int32_field(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ep_state_t     *state;
-    ep_tdata_t     *tdata;
-    ERL_NIF_TERM    msg, ret;
-    ErlNifBinary    bin;
-    unsigned char   expected[] = { 0x08, 0x96, 0x01 };
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *state;
+    ep_tdata_t *tdata;
+    ERL_NIF_TERM msg, ret;
+    ErlNifBinary bin;
+    unsigned char expected[] = {0x08, 0x96, 0x01};
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
     TEST_ASSERT(ep_test_build_int32_msg(env, "m1", 1) == RET_OK);
 
-    state = (ep_state_t *) enif_priv_data(env);
+    state = (ep_state_t *)enif_priv_data(env);
     tdata = &state->tdata[0];
     tdata->enc.p = tdata->enc.mem;
 

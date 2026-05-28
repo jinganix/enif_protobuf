@@ -5,7 +5,7 @@
 static int
 test_make_free_msg_node(void)
 {
-    ep_node_t      *node = make_node(2, node_msg);
+    ep_node_t *node = make_node(2, node_msg);
 
     TEST_ASSERT(node != NULL);
     TEST_ASSERT(node->fields != NULL);
@@ -18,7 +18,7 @@ test_make_free_msg_node(void)
 static int
 test_make_free_enum_node(void)
 {
-    ep_node_t      *node = make_node(3, node_enum);
+    ep_node_t *node = make_node(3, node_enum);
 
     TEST_ASSERT(node != NULL);
     TEST_ASSERT(node->fields != NULL);
@@ -32,7 +32,7 @@ static int
 test_field_compare_fnum(void)
 {
     ep_fnum_field_t ff;
-    int32_t         key = 7;
+    int32_t key = 7;
 
     ff.fnum = 10;
     TEST_ASSERT(get_field_compare_fnum(&key, &ff) < 0);
@@ -49,7 +49,7 @@ static int
 test_enum_compare_value(void)
 {
     ep_enum_field_t ef;
-    int32_t         key = 5;
+    int32_t key = 5;
 
     ef.value = 8;
     TEST_ASSERT(get_enum_compare_value(&key, &ef) < 0);
@@ -62,7 +62,7 @@ test_enum_compare_value(void)
 static int
 test_parse_via_load_cache(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
+    ErlNifEnv *env = ep_test_env_create();
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
@@ -76,8 +76,8 @@ test_parse_via_load_cache(void)
 static int
 test_map_field_compare(void)
 {
-    ep_field_t      f;
-    int32_t         key = 2;
+    ep_field_t f;
+    int32_t key = 2;
 
     f.fnum = 3;
     TEST_ASSERT(get_map_field_compare_fnum(&key, &f) < 0);
@@ -90,9 +90,9 @@ static int
 test_enum_compare_name(void)
 {
     ep_enum_field_t ef;
-    ERL_NIF_TERM    key = (ERL_NIF_TERM) 50;
+    ERL_NIF_TERM key = (ERL_NIF_TERM)50;
 
-    ef.name = (ERL_NIF_TERM) 100;
+    ef.name = (ERL_NIF_TERM)100;
     TEST_ASSERT(get_enum_compare_name(&key, &ef) < 0);
     ef.name = key;
     TEST_ASSERT_EQ(get_enum_compare_name(&key, &ef), 0);

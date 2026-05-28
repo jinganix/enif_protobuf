@@ -5,8 +5,8 @@
 static int
 test_make_atom_existing(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ERL_NIF_TERM    a1, a2;
+    ErlNifEnv *env = ep_test_env_create();
+    ERL_NIF_TERM a1, a2;
 
     TEST_ASSERT(env != NULL);
     a1 = make_atom(env, "ok");
@@ -22,8 +22,8 @@ test_make_atom_existing(void)
 static int
 test_make_atom_new(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ERL_NIF_TERM    a, b;
+    ErlNifEnv *env = ep_test_env_create();
+    ERL_NIF_TERM a, b;
 
     TEST_ASSERT(env != NULL);
     a = make_atom(env, "unique_atom_xyz_123");
