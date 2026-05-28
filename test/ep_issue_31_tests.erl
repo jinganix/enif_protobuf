@@ -17,4 +17,3 @@ issue_31_test() ->
 defs_enum_gen(0, OptList) -> OptList;
 defs_enum_gen(N, CurOptList) when N > 0 ->
     defs_enum_gen(N-1, [{list_to_atom("opt" ++ integer_to_list(N)), N} | CurOptList]).
-

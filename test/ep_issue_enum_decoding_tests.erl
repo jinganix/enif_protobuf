@@ -1,4 +1,5 @@
 -module(ep_issue_enum_decoding_tests).
+
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -13,4 +14,3 @@ issue_enum_decoding_test() ->
             occurrence = defaulty, opts = []}]}],
     ok = enif_protobuf:load_cache(Defs),
     {enum_with_default, zzz} = enif_protobuf:decode(<<>>, enum_with_default).
-

@@ -24,25 +24,11 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
+-import(ep_test_helpers, [decode_msg/3, decode_msg/4, encode_msg/2, encode_msg/3]).
+
 -record(m1, {a}).
 -record(m2, {b}).
 -record(m4, {x, y}).
-
-decode_msg(Bin, Name, Defs) ->
-    decode_msg(Bin, Name, Defs, [{string_as_list, true}, {with_utf8, true}]).
-
-decode_msg(Bin, Name, Defs, Opts) ->
-    enif_protobuf:set_opts(Opts),
-    enif_protobuf:load_cache(Defs),
-    enif_protobuf:decode(Bin, Name).
-
-encode_msg(Msg, Defs) ->
-    encode_msg(Msg, Defs, [{string_as_list, true}, {with_utf8, true}]).
-
-encode_msg(Msg, Defs, Opts) ->
-    enif_protobuf:set_opts(Opts),
-    enif_protobuf:load_cache(Defs),
-    enif_protobuf:encode(Msg).
 
 skipping_unknown_varint_field_test() ->
     #m1{a = undefined} =
@@ -1032,6 +1018,9 @@ proto3_optional_test() ->
     #m1{a = undefined} = decode_msg(B2, m1, Defs),
     ok.
 
+groups_not_supported_test() ->
+    {skip, "protobuf groups are not supported by enif_protobuf"}.
+
 encode_decode_required_group() ->
     %% message m1 {
     %%   required group g = 30 {
@@ -1089,6 +1078,9 @@ is_hex_digit(D) when $0 =< D, D =< $9 -> true;
 is_hex_digit(D) when $a =< D, D =< $f -> true;
 is_hex_digit(D) when $A =< D, D =< $F -> true;
 is_hex_digit(_) -> false.
+
+unknown_fields_not_supported_test() ->
+    {skip, "$unknown field passthrough is not supported by enif_protobuf"}.
 
 encode_decode_basic_unknowns() ->
     Field1 = #?gpb_field{name = a, fnum = 1, rnum = 2, type = string,
@@ -1169,7 +1161,7 @@ encode_decode_repeated_unknowns() ->
     ?assertEqual(Msg0, D2).
 
 -ifndef(NO_HAVE_MAPS).
-msg_to_from_map() ->
+msg_to_from_map_test() ->
     %% map<_,_> messages
     MtDefs = [{{msg, m1},
         [#?gpb_field{name = a, fnum = 1, rnum = #m1.a,

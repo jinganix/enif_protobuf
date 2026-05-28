@@ -52,7 +52,7 @@ issue_27_test() ->
     Bin1 = gpb:encode_msg(Msg1, Defs),
     Bin1 = enif_protobuf:encode_msg(Msg1, Defs),
 
-    Bin2 = <<8,99,18,4,116,101,115,116,24,0,40,0,90,0,96,0>>,
+    Bin2 = <<8, 99, 18, 4, 116, 101, 115, 116, 24, 0, 40, 0, 90, 0, 96, 0>>,
     Msg2 = #default_string_mix_msg{count_num = 99, rname = <<"test">>, py_id = 0, status_arr = [], gname = <<>>},
     Bin2 = gpb:encode_msg(Msg2, Defs),
     Bin2 = enif_protobuf:encode_msg(Msg2, Defs).
