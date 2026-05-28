@@ -55,6 +55,7 @@ ERL_NIF_TERM enif_make_int64(ErlNifEnv *env, ErlNifSInt64 i);
 ERL_NIF_TERM enif_make_uint64(ErlNifEnv *env, ErlNifUInt64 i);
 ERL_NIF_TERM enif_make_double(ErlNifEnv *env, double d);
 ERL_NIF_TERM enif_make_binary(ErlNifEnv *env, ErlNifBinary *bin);
+ERL_NIF_TERM enif_make_sub_binary(ErlNifEnv *env, ERL_NIF_TERM bin_term, size_t pos, size_t size);
 ERL_NIF_TERM enif_make_string(ErlNifEnv *env, const char *string, int flags);
 ERL_NIF_TERM enif_make_list(ErlNifEnv *env, unsigned n, ...);
 ERL_NIF_TERM enif_make_list_cell(ErlNifEnv *env, ERL_NIF_TERM head, ERL_NIF_TERM tail);
