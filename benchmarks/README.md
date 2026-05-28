@@ -96,7 +96,6 @@ Higher is better. Throughput in MB/s on serialized wire size.
 
 ```
 tool-versions erlang: 29.0.1
-erl: /Users/jingan/.asdf/installs/erlang/29.0.1/bin/erl
 System
 Darwin 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:15 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6041 arm64
 CPU info

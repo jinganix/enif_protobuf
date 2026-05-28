@@ -82,6 +82,36 @@ set_opts_invalid_option_test() ->
 load_cache_badarg_test() ->
     ?assertError(not_a_list, enif_protobuf:load_cache(not_a_list)).
 
+load_cache_invalid_map_key_type_should_fail_test() ->
+    ok = enif_protobuf:purge_cache(),
+    Defs = [
+        {{msg, m1}, [
+            #field{name = m, fnum = 1, rnum = 2, type = {map, double, int32}, occurrence = repeated, opts = []}
+        ]}
+    ],
+    ?assertError(_, enif_protobuf:load_cache(Defs)).
+
+load_cache_nested_map_value_type_should_fail_test() ->
+    ok = enif_protobuf:purge_cache(),
+    Defs = [
+        {{msg, m1}, [
+            #field{name = m, fnum = 1, rnum = 2, type = {map, string, {map, int32, int32}}, occurrence = repeated, opts = []}
+        ]}
+    ],
+    ?assertError(_, enif_protobuf:load_cache(Defs)).
+
+encode_nested_msg_with_wrong_name_should_fail_test() ->
+    Defs = [
+        {{msg, child}, [
+            #field{name = v, fnum = 1, rnum = 2, type = int32, occurrence = optional, opts = []}
+        ]},
+        {{msg, parent}, [
+            #field{name = c, fnum = 1, rnum = 2, type = {msg, child}, occurrence = optional, opts = []}
+        ]}
+    ],
+    ok = enif_protobuf:load_cache(Defs),
+    ?assertError(_, enif_protobuf:encode({parent, {wrong_child, 123}})).
+
 roundtrip_test() ->
     Defs = ep_test_helpers:person_defs(),
     Msg = {'Person', "abc def", 345, "a@example.com"},
