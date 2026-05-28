@@ -1,67 +1,82 @@
 #! /usr/bin/env escript
-%% This line tells emacs to use -*- erlang -*- mode -*- coding: iso-8859-1 -*-
-%%! -pa _build/default/lib/enif_protobuf/ebin/ -pa tmp/ -sname protoexerciser
+%% -*- erlang -*-
+%%! -pa ../_build/test/lib/gpb/ebin -pa ../_build/default/lib/enif_protobuf/ebin -pa tmp/
 
 %%% Copyright (C) 2011  Tomas Abrahamsson
 %%%
-%%% Author: Tomas Abrahamsson <tab@lysator.liu.se>
-%%%
-%%% This library is free software; you can redistribute it and/or
-%%% modify it under the terms of the GNU Lesser General Public
-%%% License as published by the Free Software Foundation; either
-%%% version 2.1 of the License, or (at your option) any later version.
-%%%
-%%% This library is distributed in the hope that it will be useful,
-%%% but WITHOUT ANY WARRANTY; without even the implied warranty of
-%%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-%%% Lesser General Public License for more details.
-%%%
-%%% You should have received a copy of the GNU Lesser General Public
-%%% License along with this library; if not, write to the Free Software
-%%% Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-%%% MA  02110-1301  USA
+%%% Benchmark driver for gpb and enif_protobuf. Based on gpb/benchmarks/proto-bench.
 
 -mode(compile).
-%-compile(export_all).
 -export([main/1]).
 
 main(Args) ->
-    run_tests(Args).
+    {Backend, Rest} = parse_backend(Args),
+    run_tests(Backend, Rest).
 
-run_tests(["--echo", Str | Rest]) ->
+parse_backend(["--backend", BackendStr | Rest]) ->
+    case BackendStr of
+        "gpb" -> {gpb, Rest};
+        "epb" -> {epb, Rest};
+        Other -> usage(Other)
+    end;
+parse_backend(_Args) ->
+    usage(missing).
+
+usage(What) ->
+  io:format(standard_error,
+            "Usage: proto-bench --backend gpb|epb [options] MODULE MSG FILE ...~n"
+            "  Problem: ~p~n", [What]),
+  halt(2).
+
+run_tests(Backend, ["--echo", Str | Rest]) ->
     io:format("~s~n", [Str]),
-    run_tests(Rest);
-run_tests([MsgModuleStr, MsgNameStr | MsgFileAndRest]) ->
+    run_tests(Backend, Rest);
+run_tests(Backend, [MsgModuleStr, MsgNameStr | MsgFileAndRest]) ->
     MsgModule = list_to_atom(MsgModuleStr),
     MsgName = list_to_atom(MsgNameStr),
     {MsgFiles, Rest} = pickup_msg_file_or_files(MsgFileAndRest),
-    MsgBins = [begin {{ok, B},_} = {file:read_file(MsgFile),MsgFile},
-                     B
+    MsgBins = [begin
+                   {ok, B} = file:read_file(MsgFile),
+                   B
                end || MsgFile <- MsgFiles],
     DataSize = iolist_size(MsgBins),
     EMsgName = case encode_needs_msgname(MsgModule) of
                    true -> MsgName;
-        false -> undefined
-    end,
-    ok = enif_protobuf:load_cache(MsgModule:get_msg_defs()),
-    Decoder = fun() -> decode_bins(MsgBins, MsgModule, MsgName) end,
-    Msgs = [MsgModule:decode_msg(Bin, MsgName) || Bin <- MsgBins],
-    Encoder = fun() -> encode_msgs(Msgs, MsgModule, EMsgName) end,
-    maybe_warn_skewed_results(),
-    io:format("Benchmarking ~s ~s with file ~s~n",
-              [MsgModule, MsgName, string:join(MsgFiles, ",")]),
-    run_test("Serialize to binary", DataSize, Encoder),
-    run_test("Deserialize from binary", DataSize, Decoder),
-    io:format("~n"),
-    run_tests(Rest);
-run_tests([]) ->
+                   false -> undefined
+               end,
+  setup_backend(Backend, MsgModule),
+  Decoder = fun() -> decode_bins(Backend, MsgBins, MsgModule, MsgName) end,
+  Msgs = decode_for_encode_samples(Backend, MsgBins, MsgModule, MsgName),
+  Encoder = fun() -> encode_msgs(Backend, Msgs, MsgModule, EMsgName) end,
+  maybe_warn_skewed_results(),
+  io:format("Benchmarking ~s ~s (~s) with file ~s~n",
+            [backend_label(Backend), MsgModule, MsgName,
+             string:join(MsgFiles, ",")]),
+  run_test("Serialize to binary", DataSize, Encoder),
+  run_test("Deserialize from binary", DataSize, Decoder),
+  io:format("~n"),
+  run_tests(Backend, Rest);
+run_tests(_Backend, []) ->
     ok.
+
+backend_label(gpb) -> "gpb";
+backend_label(epb) -> "enif_protobuf".
+
+setup_backend(epb, MsgModule) ->
+    ok = enif_protobuf:load_cache(MsgModule:get_msg_defs());
+setup_backend(gpb, _MsgModule) ->
+    ok.
+
+decode_for_encode_samples(gpb, MsgBins, MsgModule, MsgName) ->
+    [MsgModule:decode_msg(Bin, MsgName) || Bin <- MsgBins];
+decode_for_encode_samples(epb, MsgBins, MsgModule, MsgName) ->
+    [MsgModule:decode_msg(Bin, MsgName) || Bin <- MsgBins].
 
 encode_needs_msgname(MsgModule) ->
     Exports = MsgModule:module_info(exports),
     case lists:keyfind(encode_msg, 1, Exports) of
-        {encode_msg, 1} -> false; %% records
-        {encode_msg, 2} -> true   %% maps
+        {encode_msg, 1} -> false;
+        {encode_msg, 2} -> true
     end.
 
 pickup_msg_file_or_files(["--multi" | MsgFilesAndRest]) ->
@@ -72,49 +87,45 @@ pickup_msg_file_or_files(["--multi" | MsgFilesAndRest]) ->
 pickup_msg_file_or_files([MsgFile | Rest]) ->
     {[MsgFile], Rest}.
 
-
-decode_bins([MsgBin | Rest], MsgModule, MsgName) ->
+decode_bins(gpb, [MsgBin | Rest], MsgModule, MsgName) ->
+    MsgModule:decode_msg(MsgBin, MsgName),
+    decode_bins(gpb, Rest, MsgModule, MsgName);
+decode_bins(gpb, [], _, _) ->
+    ok;
+decode_bins(epb, [MsgBin | Rest], _MsgModule, MsgName) ->
     enif_protobuf:decode(MsgBin, MsgName),
-    decode_bins(Rest, MsgModule, MsgName);
-decode_bins([], _, _) ->
+    decode_bins(epb, Rest, _MsgModule, MsgName);
+decode_bins(epb, [], _, _) ->
     ok.
 
-encode_msgs([Msg | Rest], MsgModule, undefined) ->
-    enif_protobuf:encode(Msg), %% MsgName not needed for records
-    encode_msgs(Rest, MsgModule, undefined);
-encode_msgs([Msg | Rest], MsgModule, MsgName) ->
-    enif_protobuf:encode(Msg, MsgName), %% MsgName needed for maps
-    encode_msgs(Rest, MsgModule, MsgName);
-encode_msgs([], _, _) ->
+encode_msgs(gpb, [Msg | Rest], MsgModule, undefined) ->
+    MsgModule:encode_msg(Msg),
+    encode_msgs(gpb, Rest, MsgModule, undefined);
+encode_msgs(gpb, [Msg | Rest], MsgModule, MsgName) ->
+    MsgModule:encode_msg(Msg, MsgName),
+    encode_msgs(gpb, Rest, MsgModule, MsgName);
+encode_msgs(gpb, [], _, _) ->
+    ok;
+encode_msgs(epb, [Msg | Rest], _MsgModule, undefined) ->
+    enif_protobuf:encode(Msg),
+    encode_msgs(epb, Rest, _MsgModule, undefined);
+encode_msgs(epb, [Msg | Rest], MsgModule, _MsgName) ->
+    enif_protobuf:encode_msg(Msg, MsgModule:get_msg_defs()),
+    encode_msgs(epb, Rest, MsgModule, _MsgName);
+encode_msgs(epb, [], _, _) ->
     ok.
-
 
 maybe_warn_skewed_results() ->
-    try list_to_integer(erlang:system_info(otp_release)) of
-        N when N >= 22 ->
-            io:format(
-              "\n"
-              "NB: The results are currently skewed on Erlang 22 and later.\n"
-              "    Optimizations in Erlang 22 and the way the benchmarks\n"
-              "    are implemented cause more GC than normal.\n"
-              "    The benchmarking code is not yet adapted. It will show\n"
-              "    pessimistic values.\n"
-              "    See https://github.com/erlang/otp/commit/7d941c529d#commitcomment-31091771\n"
-              "    for more info.\n"
-              "\n");
-        _ ->
-            ok
-    catch _:_ ->
-            ok
-    end.
-
-
+    ok.
 
 run_test(Description, DataSize, Action) ->
-    {P,M} = spawn_monitor(
-              fun() ->
-                      run_test_aux(Description, DataSize, Action)
-        end),
+    P = spawn_opt(
+          fun() ->
+                  run_test_aux(Description, DataSize, Action)
+          end,
+          [{min_heap_size, 10000000},
+           {min_bin_vheap_size, 10000000}]),
+    M = monitor(process, P),
     receive
         {'DOWN', M, process, P, normal} ->
             ok;
@@ -123,8 +134,8 @@ run_test(Description, DataSize, Action) ->
     end.
 
 run_test_aux(Description, DataSize, Action) ->
-    MinSampleTime = 2, %% seconds
-    TargetTime = 30,   %% seconds
+    MinSampleTime = sample_time_min(),
+    TargetTime = sample_time_target(),
     {Elapsed, NumIterations} = iterate_until_elapsed(MinSampleTime, Action),
     TargetNumIterations = round((TargetTime / Elapsed) * NumIterations),
     Elapsed2 = time_action(TargetNumIterations, Action),
@@ -132,6 +143,18 @@ run_test_aux(Description, DataSize, Action) ->
               [Description, TargetNumIterations, Elapsed2,
                (TargetNumIterations * DataSize) / (Elapsed2 * 1024 * 1024)]),
     ok.
+
+sample_time_min() ->
+    env_int("BENCH_MIN_SAMPLE_TIME", 2).
+
+sample_time_target() ->
+    env_int("BENCH_TARGET_TIME", 30).
+
+env_int(Name, Default) ->
+    case os:getenv(Name) of
+        false -> Default;
+        Val -> list_to_integer(Val)
+    end.
 
 iterate_until_elapsed(MaxDuration, Action) ->
     iterate_until_elapsed_2(1, MaxDuration, Action).
@@ -146,10 +169,13 @@ iterate_until_elapsed_2(NumIterations, MaxDuration, Action) ->
 
 time_action(NumIterations, Action) ->
     garbage_collect(),
-    T0 = os:timestamp(),
+    T0 = erlang:monotonic_time(),
     iterate_action(NumIterations, Action),
-    T1 = os:timestamp(),
-    timer:now_diff(T1, T0) / 1000000.
+    T1 = erlang:monotonic_time(),
+    to_seconds(T1 - T0, native).
+
+to_seconds(Time, InUnit) ->
+    erlang:convert_time_unit(Time, InUnit, microsecond) / 1000000.
 
 iterate_action(N, Action) when N > 0 ->
     Action(),

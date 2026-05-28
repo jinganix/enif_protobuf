@@ -5,8 +5,6 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("gpb/include/gpb.hrl").
 
--record(m1, {a}).
-
 % https://github.com/jinganix/enif_protobuf/issues/29
 issue_29_test() ->
     Defs = [
@@ -17,6 +15,8 @@ issue_29_test() ->
             {field, item, 1, 2, int64, optional, []}
         ]}
     ],
-    Bin = <<10,7,10,1,97,18,2,8,1>>,
-    Bin = gpb:encode_msg({a_message, [{"a", {non_trivial_item, 1}}]}, Defs),
-    Bin = enif_protobuf:encode_msg({a_message, [{"a", {non_trivial_item, 1}}]}, Defs).
+    Msg = {a_message, [{"a", {non_trivial_item, 1}}]},
+    Bin = <<10, 7, 10, 1, 97, 18, 2, 8, 1>>,
+    Bin = gpb:encode_msg(Msg, Defs),
+    Bin = enif_protobuf:encode_msg(Msg, Defs),
+    Msg = enif_protobuf:decode_msg(Bin, a_message, Defs).

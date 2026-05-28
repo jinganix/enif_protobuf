@@ -1,7 +1,8 @@
 REBAR := $(shell which rebar3 2>/dev/null || echo ./rebar3)
 REBAR_URL := https://s3.amazonaws.com/rebar3/rebar3
 
-.PHONY: clean compile tests c-tests c-coverage c-coverage-check
+.PHONY: clean compile tests c-tests c-coverage c-coverage-check \
+	benchmark benchmark-quick benchmark-update-readme
 
 all: compile
 
@@ -23,6 +24,15 @@ c-coverage-check:
 clean: $(REBAR)
 	$(REBAR) clean
 	$(MAKE) -C c_src_tests clean
+
+benchmark:
+	$(MAKE) -C benchmarks benchmarks
+
+benchmark-quick:
+	$(MAKE) -C benchmarks benchmarks-quick
+
+benchmark-update-readme:
+	$(MAKE) -C benchmarks update-readme
 
 ./rebar3:
 	erl -noshell -s inets start -s ssl start \
