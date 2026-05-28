@@ -65,29 +65,30 @@ ok
 Performance
 -----------
 
-Here is a comparison between enif_protobuf(epb) and gpb
+Comparison of **enif_protobuf** (NIF), **gpb** (pure Erlang), and **gpb NIF** (libprotobuf) on the standard Google benchmark messages (228 and 84584 bytes on the wire). Regenerate on your machine:
 
+```shell
+asdf install   # uses .tool-versions (erlang 29.0.1)
+make benchmark-update-readme
+```
+
+Benchmarks always use the Erlang version from [`.tool-versions`](.tool-versions). See [benchmarks/README.md](benchmarks/README.md) for all targets (maps, `d.proto`, gpb NIF, etc.).
+
+<!-- BENCHMARK_RESULTS_START -->
+Last run: 2026-05-28 06:01:24 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
+
+```
     [MB/s]        | epb    | gpb   | gpb nif |
     --------------+--------+-------+---------+
     small msgs    |        |       |         |
-      serialize   | 116.09 | 32.17 |  38.02  |
-      deserialize | 111.88 | 35.57 |  61.87  |
+      serialize   | 307.88 | 165.33 |  62.18 |
+      deserialize | 274.72 | 282.08 |  92.00 |
     --------------+--------+-------+---------+
     large msgs    |        |       |         |
-      serialize   | 122.86 | 20.90 |  38.64  |
-      deserialize | 114.72 | 32.53 |  59.29  |
+      serialize   | 314.95 | 144.16 | 101.93 |
+      deserialize | 241.86 | 269.09 | 193.95 |
     --------------+--------+-------+---------+
+```
 
-HW info
-
-    CPU info
-    model name	: Intel(R) Core(TM) i3-3220 CPU @ 3.30GHz
-    cache size	: 3072 KB
-    cores/threads   : 4
-    bogomips	: 6585.04
-
-    Erlang (SMP,ASYNC_THREADS) (BEAM) emulator version 7.3
-
-The performances are measured as number of processed MB/s, serialized form.  Higher values means better performance.
-
-The benchmarks are run with small and large messages (228 and 84584 bytes, respectively, in serialized form)
+Higher is better. Throughput is measured on serialized wire size.
+<!-- BENCHMARK_RESULTS_END -->
