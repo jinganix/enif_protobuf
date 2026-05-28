@@ -16,6 +16,135 @@ make_atom(ErlNifEnv *env, const char *name)
     return enif_make_atom(env, name);
 }
 
+ERL_NIF_TERM
+ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
+{
+    char            buf[16];
+    ep_spot_t      *spot;
+    ep_node_t      *node = NULL;
+    ep_cache_t     *cache, *old_cache;
+    ep_stack_t     *stack;
+    int32_t         arity;
+    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    uint32_t        i, len = 0, proto_v = 2, max_fields = 2;
+    ERL_NIF_TERM    term, head, tail, ret, proto3_list = 0;
+    ERL_NIF_TERM   *array;
+
+    term = list;
+    while (enif_get_list_cell(env, term, &head, &tail)) {
+        if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
+            raise_exception(env, head);
+        }
+
+        if (array[0] == make_atom(env, "syntax")) {
+            if (!enif_get_string(env, array[1], buf, sizeof(buf), ERL_NIF_LATIN1)) {
+                raise_exception(env, head);
+            }
+
+            if (!strncmp(buf, "proto2", sizeof("proto2"))) {
+                proto_v = 2;
+            } else if (!strncmp(buf, "proto3", sizeof("proto3"))) {
+                proto_v = 3;
+            } else {
+                raise_exception(env, head);
+            }
+
+            term = tail;
+            continue;
+        }
+
+        if (array[0] == make_atom(env, "proto3_msgs")) {
+            if (enif_is_list(env, array[1])) {
+                proto3_list = array[1];
+            } else {
+                raise_exception(env, head);
+            }
+            term = tail;
+            continue;
+        }
+
+        len++;
+        term = tail;
+    }
+
+    if (len == 0) {
+        raise_exception(env, list);
+    }
+
+    if (ep_cache_create(len, &cache) != RET_OK) {
+        raise_exception(env, list);
+    }
+
+    term = list;
+    while (enif_get_list_cell(env, term, &head, &tail)) {
+        if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
+            ep_cache_destroy(&cache);
+            raise_exception(env, head);
+        }
+
+        if (array[0] == make_atom(env, "syntax")
+            || array[0] == make_atom(env, "proto3_msgs")) {
+            term = tail;
+            continue;
+        }
+
+        if ((ret = parse_node(env, head, &node, proto_v, proto3_list)) != RET_OK) {
+            if (node != NULL) {
+                free_node(node);
+            }
+            ep_cache_destroy(&cache);
+            raise_exception(env, ret);
+        }
+
+        if (node != NULL) {
+            if (node->n_type == node_msg || node->n_type == node_map) {
+                max_fields = max_fields >= node->size ? max_fields : node->size;
+            }
+            ep_cache_insert(node, cache);
+        }
+        term = tail;
+    }
+
+    if (!cache->used) {
+        ep_cache_destroy(&cache);
+        raise_exception(env, list);
+    }
+    ep_cache_sort(cache);
+
+    if ((ret = prelink_nodes(env, cache)) != RET_OK) {
+        ep_cache_destroy(&cache);
+        return ret;
+    }
+
+    enif_rwlock_rwlock(state->cache_lock);
+
+    stack_ensure_all(env, cache);
+    for (i = 0; i < state->lock_n; i++) {
+        stack = &(state->tdata[i].stack);
+        spot = stack->spots;
+        while (spot < stack->end) {
+            spot->t_size = max_fields + 1;
+            if (spot->t_arr == NULL) {
+                spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
+            } else {
+                spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
+            }
+            spot++;
+        }
+    }
+    old_cache = state->cache;
+    state->cache = cache;
+
+    enif_rwlock_rwunlock(state->cache_lock);
+
+    if (old_cache != NULL) {
+        ep_cache_destroy(&old_cache);
+    }
+
+    return state->atom_ok;
+}
+
+#ifndef EPB_UNIT_TEST
 /*
  * nif library callbacks
  */
@@ -148,127 +277,11 @@ unload(ErlNifEnv *env, void *priv)
 static ERL_NIF_TERM
 load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    char            buf[16];
-    ep_spot_t      *spot;
-    ep_node_t      *node = NULL;
-    ep_cache_t     *cache, *old_cache;
-    ep_stack_t     *stack;
-    int32_t         arity;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    uint32_t        i, len = 0, proto_v = 2, max_fields = 2;
-    ERL_NIF_TERM    term, head, tail, ret, proto3_list = 0;
-    ERL_NIF_TERM   *array;
-
     if (argc != 1) {
         return enif_make_badarg(env);
     }
 
-    term = argv[0];
-    while (enif_get_list_cell(env, term, &head, &tail)) {
-        if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
-            raise_exception(env, head);
-        }
-
-        if (array[0] == make_atom(env, "syntax")) {
-            if (!enif_get_string(env, array[1], buf, sizeof(buf), ERL_NIF_LATIN1)) {
-                raise_exception(env, head);
-            }
-
-            if (!strncmp(buf, "proto2", sizeof("proto2"))) {
-                proto_v = 2;
-            } else if (!strncmp(buf, "proto3", sizeof("proto3"))) {
-                proto_v = 3;
-            } else {
-                raise_exception(env, head);
-            }
-
-            term = tail;
-            continue;
-        }
-
-        if (array[0] == make_atom(env, "proto3_msgs")) {
-            if (enif_is_list(env, array[1])) {
-                proto3_list = array[1];
-            } else {
-                raise_exception(env, head);
-            }
-            term = tail;
-            continue;
-        }
-
-        len++;
-        term = tail;
-    }
-
-    if (len == 0) {
-        raise_exception(env, argv[0]);
-    }
-
-    if (ep_cache_create(len, &cache) != RET_OK) {
-        raise_exception(env, argv[0]);
-    }
-
-    term = argv[0];
-    while (enif_get_list_cell(env, term, &head, &tail)) {
-        if (!enif_get_tuple(env, head, &arity, to_const(array)) || arity != 2) {
-            ep_cache_destroy(&cache);
-            raise_exception(env, head);
-        }
-
-        if ((ret = parse_node(env, head, &node, proto_v, proto3_list)) != RET_OK) {
-            if (node != NULL) {
-                free_node(node);
-            }
-            ep_cache_destroy(&cache);
-            raise_exception(env, ret);
-        }
-
-        if (node != NULL) {
-            if (node->n_type == node_msg || node->n_type == node_map) {
-                max_fields = max_fields >= node->size ? max_fields : node->size;
-            }
-            ep_cache_insert(node, cache);
-        }
-        term = tail;
-    }
-
-    if (!cache->used) {
-        ep_cache_destroy(&cache);
-        raise_exception(env, argv[0]);
-    }
-    ep_cache_sort(cache);
-
-    if ((ret = prelink_nodes(env, cache)) != RET_OK) {
-        ep_cache_destroy(&cache);
-        return ret;
-    }
-
-    enif_rwlock_rwlock(state->cache_lock);
-
-    stack_ensure_all(env, cache);
-    for (i = 0; i < state->lock_n; i++) {
-        stack = &(state->tdata[i].stack);
-        spot = stack->spots;
-        while (spot < stack->end) {
-            spot->t_size = max_fields + 1;
-            if (spot->t_arr == NULL) {
-                spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
-            } else {
-                spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
-            }
-            spot++;
-        }
-    }
-    old_cache = state->cache;
-    state->cache = cache;
-
-    enif_rwlock_rwunlock(state->cache_lock);
-
-    if (old_cache != NULL) {
-        ep_cache_destroy(&old_cache);
-    }
-
-    return state->atom_ok;
+    return ep_load_cache(env, argv[0]);
 }
 
 static ERL_NIF_TERM
@@ -519,3 +532,4 @@ static ErlNifFunc funcs[] =
 };
 
 ERL_NIF_INIT(enif_protobuf, funcs, &load, &reload, &upgrade, &unload);
+#endif /* EPB_UNIT_TEST */

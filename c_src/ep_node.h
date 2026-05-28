@@ -80,4 +80,8 @@ get_enum_compare_name(const void *a, const void *b);
 int
 get_enum_compare_value(const void *a, const void *b);
 
+#if defined(EPB_UNIT_TEST)
+ep_node_t *make_node(int fields_n, node_type_e n_type);
+#endif
+
 #endif

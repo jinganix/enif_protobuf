@@ -7,10 +7,18 @@
 #include <limits.h>
 #include <math.h>
 
+#if defined(EPB_UNIT_TEST)
+#undef USE_OS_MEM
+#define USE_OS_MEM  1
+#include "../c_src_tests/stub/erl_nif_stub.h"
+#else
 #include "erl_nif.h"
+#endif
 
 #define IS_DEBUG    0
+#ifndef USE_OS_MEM
 #define USE_OS_MEM  0
+#endif
 #define DEBUG_MEM   0
 
 #define RET_OK      0
@@ -332,5 +340,9 @@ _calloc(size_t nmemb, size_t size)
 
 ERL_NIF_TERM
 make_atom(ErlNifEnv *env, const char *name);
+
+#if defined(EPB_UNIT_TEST)
+ERL_NIF_TERM ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list);
+#endif
 
 #endif

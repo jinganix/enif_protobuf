@@ -88,4 +88,25 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata);
 ERL_NIF_TERM
 decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node);
 
+#if defined(EPB_UNIT_TEST)
+size_t ep_unit_pack_uint32(uint32_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_sint32(int32_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_int32(int32_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_int64(int64_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_uint64(uint64_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_fixed32(int32_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_fixed64(int64_t val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_bool(int val, unsigned char *buf, size_t cap);
+size_t ep_unit_pack_double(double val, unsigned char *buf, size_t cap);
+int ep_unit_unpack_uint32(const unsigned char *buf, size_t len, uint32_t *out);
+int ep_unit_unpack_sint32(const unsigned char *buf, size_t len, int32_t *out);
+int ep_unit_unpack_int32(const unsigned char *buf, size_t len, int32_t *out);
+int ep_unit_unpack_int64(const unsigned char *buf, size_t len, int64_t *out);
+int ep_unit_unpack_uint64(const unsigned char *buf, size_t len, uint64_t *out);
+int ep_unit_unpack_fixed32(const unsigned char *buf, size_t len, uint32_t *out);
+int ep_unit_unpack_fixed64(const unsigned char *buf, size_t len, uint64_t *out);
+int ep_unit_unpack_bool(const unsigned char *buf, size_t len, int *out);
+int ep_unit_unpack_double(const unsigned char *buf, size_t len, double *out);
+#endif
+
 #endif

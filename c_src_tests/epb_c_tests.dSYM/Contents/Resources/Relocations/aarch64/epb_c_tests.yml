@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     '/Users/jingan/workspace/enif_protobuf/c_src_tests/epb_c_tests'
+relocations:     []
+...

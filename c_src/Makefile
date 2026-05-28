@@ -13,8 +13,35 @@ ERL_INTERFACE_LIB_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts\", [code:li
 C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
+NIF_SOURCES = \
+	$(C_SRC_DIR)/enif_protobuf.c \
+	$(C_SRC_DIR)/ep_cache.c \
+	$(C_SRC_DIR)/ep_decoder.c \
+	$(C_SRC_DIR)/ep_encoder.c \
+	$(C_SRC_DIR)/ep_node.c
+
 # System type and C compiler/flags.
 
+ifeq ($(OS),Windows_NT)
+	PRIV_DIR := $(BASEDIR)/priv
+	# OTP on Windows is a native PE binary; link the NIF with MinGW-w64, not MSYS libc.
+	ifneq ($(wildcard /mingw64/bin/gcc.exe),)
+		CC := /mingw64/bin/gcc
+	else ifneq ($(wildcard /ucrt64/bin/gcc.exe),)
+		CC := /ucrt64/bin/gcc
+	else
+		CC ?= gcc
+	endif
+	MINGW_BIN := $(dir $(shell command -v $(CC) 2>/dev/null || echo $(CC)))
+	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
+	CXXFLAGS ?= -O3 -finline-functions -Wall
+	C_SRC_OUTPUT = $(CURDIR)/../priv/$(PROJECT).dll
+	CFLAGS += -I "$(ERTS_INCLUDE_DIR)"
+	CXXFLAGS += -I "$(ERTS_INCLUDE_DIR)"
+	LDFLAGS += -shared -static-libgcc
+	SOURCES = $(NIF_SOURCES)
+	WIN_RUNTIME_DLLS := libgcc_s_seh-1.dll libwinpthread-1.dll
+else
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
     ARCH_SYS := $(shell uname -p)
@@ -43,6 +70,9 @@ CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lpthread
 LDFLAGS += -shared
 
+SOURCES := $(shell find $(C_SRC_DIR) -type f \( -name "*.c" -o -name "*.C" -o -name "*.cc" -o -name "*.cpp" \) ! -path "*/test/*")
+endif
+
 # Verbosity.
 
 c_verbose_0 = @echo " C     " $(?F);
@@ -54,7 +84,6 @@ cpp_verbose = $(cpp_verbose_$(V))
 link_verbose_0 = @echo " LD    " $(@F);
 link_verbose = $(link_verbose_$(V))
 
-SOURCES := $(shell find $(C_SRC_DIR) -type f \( -name "*.c" -o -name "*.C" -o -name "*.cc" -o -name "*.cpp" \))
 OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
 
 COMPILE_C = $(c_verbose) $(CC) $(CFLAGS) $(CPPFLAGS) -c
@@ -63,6 +92,13 @@ COMPILE_CPP = $(cpp_verbose) $(CXX) $(CXXFLAGS) $(CPPFLAGS) -c
 $(C_SRC_OUTPUT): $(OBJECTS)
 	@mkdir -p $(BASEDIR)/priv/
 	$(link_verbose) $(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
+ifeq ($(OS),Windows_NT)
+	@for dll in $(WIN_RUNTIME_DLLS); do \
+		if [ -f "$(MINGW_BIN)$$dll" ]; then \
+			cp -f "$(MINGW_BIN)$$dll" "$(PRIV_DIR)/"; \
+		fi; \
+	done
+endif
 
 %.o: %.c
 	$(COMPILE_C) $(OUTPUT_OPTION) $<
@@ -78,3 +114,6 @@ $(C_SRC_OUTPUT): $(OBJECTS)
 
 clean:
 	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
+ifeq ($(OS),Windows_NT)
+	@rm -f $(BASEDIR)/priv/libgcc_s_seh-1.dll $(BASEDIR)/priv/libwinpthread-1.dll
+endif
