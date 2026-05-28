@@ -82,20 +82,14 @@ Each case runs serialize and deserialize for ~30 seconds (configurable via `BENC
 <!-- BENCHMARK_RESULTS_START -->
 Last run: 2026-05-28 06:01:24 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
 
-```
-    [MB/s]        | epb    | gpb   | gpb nif |
-    --------------+--------+-------+---------+
-    small msgs    |        |       |         |
-      serialize   | 307.88 | 165.33 |  62.18 |
-      deserialize | 274.72 | 282.08 |  92.00 |
-    --------------+--------+-------+---------+
-    large msgs    |        |       |         |
-      serialize   | 314.95 | 144.16 | 101.93 |
-      deserialize | 241.86 | 269.09 | 193.95 |
-    --------------+--------+-------+---------+
-```
+| Test case | epb | gpb | gpb nif |
+|-----------|-----|-----|---------|
+| Small msgs · serialize | 307.88 | 165.33 | 62.18 |
+| Small msgs · deserialize | 274.72 | 282.08 | 92.00 |
+| Large msgs · serialize | 314.95 | 144.16 | 101.93 |
+| Large msgs · deserialize | 241.86 | 269.09 | 193.95 |
 
-Higher is better. Throughput is measured on serialized wire size.
+Higher is better. Throughput in MB/s on serialized wire size.
 
 <details>
 <summary>Hardware / OTP (last run)</summary>
