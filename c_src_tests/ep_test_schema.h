@@ -7,14 +7,14 @@
 int ep_test_load_m1_cache(ErlNifEnv *env);
 int ep_test_load_person_cache(ErlNifEnv *env);
 int ep_test_load_single_field(ErlNifEnv *env, const char *msg_name, const char *field_name,
-    unsigned fnum, ERL_NIF_TERM type, ERL_NIF_TERM occ, ERL_NIF_TERM *extra_defs, size_t extra_n);
+                              unsigned fnum, ERL_NIF_TERM type, ERL_NIF_TERM occ, ERL_NIF_TERM *extra_defs, size_t extra_n);
 int ep_test_load_packed_field(ErlNifEnv *env, const char *msg_name, const char *field_name,
-    unsigned fnum, ERL_NIF_TERM type);
+                              unsigned fnum, ERL_NIF_TERM type);
 int ep_test_load_oneof_cache(ErlNifEnv *env);
 int ep_test_load_nested_cache(ErlNifEnv *env);
 int ep_test_load_enum_cache(ErlNifEnv *env);
 ERL_NIF_TERM ep_test_mk_field(ErlNifEnv *env, ep_state_t *st, const char *name, unsigned fnum,
-    unsigned rnum, ERL_NIF_TERM type, ERL_NIF_TERM occ);
+                              unsigned rnum, ERL_NIF_TERM type, ERL_NIF_TERM occ);
 ERL_NIF_TERM ep_test_mk_msg_def(ErlNifEnv *env, const char *name, ERL_NIF_TERM fields);
 ERL_NIF_TERM ep_test_make_m1_message(ErlNifEnv *env, ep_state_t *state);
 ERL_NIF_TERM ep_test_make_m1_message_prefix(ErlNifEnv *env, ep_state_t *state, unsigned n_set);

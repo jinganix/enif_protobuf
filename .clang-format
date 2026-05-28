@@ -1,0 +1,20 @@
+---
+# clang-format config for enif_protobuf C sources (c_src/, c_src_tests/).
+# Apply: make c-format   Check: make c-format-check
+# Requires clang-format >= 19 (CI uses clang-format-20).
+Language: Cpp
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 0
+AlwaysBreakAfterReturnType: AllDefinitions
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: Never
+  AfterEnum: false
+  AfterStruct: false
+  AfterUnion: false
+  BeforeElse: false
+AllowShortFunctionsOnASingleLine: Empty
+SortIncludes: false

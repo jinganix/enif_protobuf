@@ -4,7 +4,7 @@
 static ep_node_t *
 make_test_node(uint32_t id, ERL_NIF_TERM name)
 {
-    ep_node_t      *node = make_node(0, node_msg);
+    ep_node_t *node = make_node(0, node_msg);
 
     if (node == NULL) {
         return NULL;
@@ -18,7 +18,7 @@ make_test_node(uint32_t id, ERL_NIF_TERM name)
 static int
 test_cache_create_destroy(void)
 {
-    ep_cache_t     *cache = NULL;
+    ep_cache_t *cache = NULL;
 
     TEST_ASSERT(ep_cache_create(4, &cache) == RET_OK);
     TEST_ASSERT(cache != NULL);
@@ -33,10 +33,10 @@ test_cache_create_destroy(void)
 static int
 test_cache_insert_sort_lookup(void)
 {
-    ep_cache_t     *cache = NULL;
-    ep_node_t      *n1, *n2, *found;
-    ERL_NIF_TERM    name1 = (ERL_NIF_TERM) 100;
-    ERL_NIF_TERM    name2 = (ERL_NIF_TERM) 200;
+    ep_cache_t *cache = NULL;
+    ep_node_t *n1, *n2, *found;
+    ERL_NIF_TERM name1 = (ERL_NIF_TERM)100;
+    ERL_NIF_TERM name2 = (ERL_NIF_TERM)200;
 
     TEST_ASSERT(ep_cache_create(4, &cache) == RET_OK);
 
@@ -70,11 +70,11 @@ test_cache_insert_sort_lookup(void)
 static int
 test_cache_insert_full(void)
 {
-    ep_cache_t     *cache = NULL;
-    ep_node_t      *node;
+    ep_cache_t *cache = NULL;
+    ep_node_t *node;
 
     TEST_ASSERT(ep_cache_create(1, &cache) == RET_OK);
-    node = make_test_node(1, (ERL_NIF_TERM) 1);
+    node = make_test_node(1, (ERL_NIF_TERM)1);
     TEST_ASSERT(ep_cache_insert(node, cache) == RET_OK);
     TEST_ASSERT(ep_cache_insert(node, cache) == RET_ERROR);
     ep_cache_destroy(&cache);
@@ -84,10 +84,10 @@ test_cache_insert_full(void)
 static int
 test_cache_sort_extreme_keys(void)
 {
-    ep_cache_t     *cache = NULL;
-    ep_node_t      *n_low, *n_high, *found;
-    ERL_NIF_TERM    name_low = (ERL_NIF_TERM) 1;
-    ERL_NIF_TERM    name_high = (ERL_NIF_TERM) UINTPTR_MAX;
+    ep_cache_t *cache = NULL;
+    ep_node_t *n_low, *n_high, *found;
+    ERL_NIF_TERM name_low = (ERL_NIF_TERM)1;
+    ERL_NIF_TERM name_high = (ERL_NIF_TERM)UINTPTR_MAX;
 
     TEST_ASSERT(ep_cache_create(4, &cache) == RET_OK);
 

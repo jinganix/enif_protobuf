@@ -4,12 +4,12 @@
 #include "enif_protobuf.h"
 
 struct ep_cache_s {
-    size_t          size;
-    size_t          used;
-    ep_node_id_t   *ids;
+    size_t size;
+    size_t used;
+    ep_node_id_t *ids;
     ep_node_name_t *names;
 
-    uint32_t        proto_v;
+    uint32_t proto_v;
 };
 
 int

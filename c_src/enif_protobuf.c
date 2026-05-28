@@ -7,7 +7,7 @@ size_t mem_total = 0;
 ERL_NIF_TERM
 make_atom(ErlNifEnv *env, const char *name)
 {
-    ERL_NIF_TERM    atom;
+    ERL_NIF_TERM atom;
 
     if (enif_make_existing_atom(env, name, &atom, ERL_NIF_LATIN1)) {
         return atom;
@@ -19,16 +19,16 @@ make_atom(ErlNifEnv *env, const char *name)
 ERL_NIF_TERM
 ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
 {
-    char            buf[16];
-    ep_spot_t      *spot;
-    ep_node_t      *node = NULL;
-    ep_cache_t     *cache, *old_cache;
-    ep_stack_t     *stack;
-    int32_t         arity;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    uint32_t        i, len = 0, proto_v = 2, max_fields = 2;
-    ERL_NIF_TERM    term, head, tail, ret, proto3_list = 0;
-    ERL_NIF_TERM   *array;
+    char buf[16];
+    ep_spot_t *spot;
+    ep_node_t *node = NULL;
+    ep_cache_t *cache, *old_cache;
+    ep_stack_t *stack;
+    int32_t arity;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    uint32_t i, len = 0, proto_v = 2, max_fields = 2;
+    ERL_NIF_TERM term, head, tail, ret, proto3_list = 0;
+    ERL_NIF_TERM *array;
 
     term = list;
     while (enif_get_list_cell(env, term, &head, &tail)) {
@@ -82,8 +82,7 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
             raise_exception(env, head);
         }
 
-        if (array[0] == make_atom(env, "syntax")
-            || array[0] == make_atom(env, "proto3_msgs")) {
+        if (array[0] == make_atom(env, "syntax") || array[0] == make_atom(env, "proto3_msgs")) {
             term = tail;
             continue;
         }
@@ -151,10 +150,10 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 {
-    ep_enc_t       *enc;
-    uint32_t        lock_n, i;
-    ep_stack_t     *stack;
-    ep_state_t     *state;
+    ep_enc_t *enc;
+    uint32_t lock_n, i;
+    ep_stack_t *stack;
+    ep_state_t *state;
 
     if (*priv == NULL) {
         if (!enif_get_uint(env, info, &lock_n)) {
@@ -242,7 +241,7 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         EP_MAKE_ATOM(env, state, defaulty);
         EP_MAKE_ATOM(env, state, repeated);
 
-        *priv = (void *) state;
+        *priv = (void *)state;
     }
     return RET_OK;
 }
@@ -287,9 +286,9 @@ load_cache_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
 
-    if(argc != 0) {
+    if (argc != 0) {
         return enif_make_badarg(env);
     }
 
@@ -303,23 +302,23 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static int
 search_compare_lock(const void *a, const void *b)
 {
-    const ErlNifTid lhs = *((const ErlNifTid *) a);
-    const ErlNifTid rhs = ((const ep_lock_t *) b)->tid;
+    const ErlNifTid lhs = *((const ErlNifTid *)a);
+    const ErlNifTid rhs = ((const ep_lock_t *)b)->tid;
     return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_lock(const void *a, const void *b)
 {
-    const ErlNifTid lhs = ((const ep_lock_t *) a)->tid;
-    const ErlNifTid rhs = ((const ep_lock_t *) b)->tid;
+    const ErlNifTid lhs = ((const ep_lock_t *)a)->tid;
+    const ErlNifTid rhs = ((const ep_lock_t *)b)->tid;
     return (lhs > rhs) - (lhs < rhs);
 }
 
 static inline void
 clear_locks(ep_state_t *state, ErlNifTid *tid)
 {
-    uint32_t        i;
+    uint32_t i;
 
     enif_rwlock_rwlock(state->cache_lock);
     if (state->lock_used == state->lock_n) {
@@ -336,10 +335,10 @@ clear_locks(ep_state_t *state, ErlNifTid *tid)
 static ep_lock_t *
 get_lock(ep_state_t *state, ErlNifTid *tid)
 {
-    ep_lock_t      *lock;
+    ep_lock_t *lock;
 
     if (state->lock_used < state->lock_n) {
-        //debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
+        // debug("used: %d, lock_n: %d", state->lock_used, state->lock_n);
         enif_rwlock_rlock(state->local_lock);
         lock = bsearch(tid, state->locks, state->lock_used, sizeof(ep_lock_t), search_compare_lock);
         enif_rwlock_runlock(state->local_lock);
@@ -368,11 +367,11 @@ get_lock(ep_state_t *state, ErlNifTid *tid)
 static ERL_NIF_TERM
 encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_lock_t      *lock;
-    ep_tdata_t     *tdata;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    ErlNifTid       tid;
-    ERL_NIF_TERM    ret;
+    ep_lock_t *lock;
+    ep_tdata_t *tdata;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ErlNifTid tid;
+    ERL_NIF_TERM ret;
 
     if (argc != 1 || !enif_is_tuple(env, argv[0])) {
         return enif_make_badarg(env);
@@ -394,7 +393,7 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         return encode_1(env, argc, argv);
     }
 
-    //debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
+    // debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
     tdata = lock->tdata;
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;
@@ -410,12 +409,12 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_node_t      *node;
-    ep_lock_t      *lock;
-    ep_tdata_t     *tdata;
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    ErlNifTid       tid;
-    ERL_NIF_TERM    ret;
+    ep_node_t *node;
+    ep_lock_t *lock;
+    ep_tdata_t *tdata;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ErlNifTid tid;
+    ERL_NIF_TERM ret;
 
     if (argc != 2 || !enif_is_binary(env, argv[0]) || !enif_is_atom(env, argv[1])) {
         return enif_make_badarg(env);
@@ -438,13 +437,13 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
     tdata = lock->tdata;
 
-    //debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
+    // debug("used: %d, lock_n: %d, lock: 0x%016lx", state->lock_used, state->lock_n, (size_t) lock);
     if (!enif_inspect_binary(env, argv[0], &(tdata->dec.bin))) {
         enif_rwlock_runlock(state->cache_lock);
         raise_exception(env, argv[0]);
     }
 
-    tdata->dec.p = (char *) (tdata->dec.bin.data);
+    tdata->dec.p = (char *)(tdata->dec.bin.data);
     tdata->dec.end = tdata->dec.p + tdata->dec.bin.size;
     tdata->dec.term = argv[0];
 
@@ -464,10 +463,10 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
-    int32_t         arity;
-    ERL_NIF_TERM    head, tail, *array;
-    ERL_NIF_TERM    opt_with_utf8, opt_string_as_list;
+    ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    int32_t arity;
+    ERL_NIF_TERM head, tail, *array;
+    ERL_NIF_TERM opt_with_utf8, opt_string_as_list;
 
     if (argc != 1 || !enif_is_list(env, argv[0])) {
         return enif_make_badarg(env);
@@ -516,7 +515,7 @@ set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 debug_term_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ERL_NIF_TERM    term;
+    ERL_NIF_TERM term;
 
     if (argc != 1) {
         return enif_make_badarg(env);
@@ -524,7 +523,7 @@ debug_term_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 
     term = argv[0];
     if (enif_is_atom(env, term)) {
-        printf("atom v:%lu\r\n", (unsigned long) term);
+        printf("atom v:%lu\r\n", (unsigned long)term);
     }
 
     return term;
@@ -532,7 +531,7 @@ debug_term_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 #endif
 
 static ErlNifFunc funcs[] =
-{
+    {
 #if DEBUG
         {"debug_term", 1, debug_term_1},
 #endif
@@ -540,8 +539,7 @@ static ErlNifFunc funcs[] =
         {"load_cache", 1, load_cache_1},
         {"purge_cache", 0, purge_cache_0},
         {"encode", 1, encode_1},
-        {"decode", 2, decode_2}
-};
+        {"decode", 2, decode_2}};
 
 ERL_NIF_INIT(enif_protobuf, funcs, &load, &reload, &upgrade, &unload);
 #endif /* EPB_UNIT_TEST */

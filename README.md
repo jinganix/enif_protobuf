@@ -14,6 +14,8 @@ record tuples and wire format.
 make            # compile (rebar3 + C NIF)
 make tests      # EUnit
 make c-tests    # C unit tests
+make c-format-check  # verify C style (clang-format >= 19)
+make c-format        # apply clang-format to c_src/ and c_src_tests/
 ```
 
 With rebar3 directly:

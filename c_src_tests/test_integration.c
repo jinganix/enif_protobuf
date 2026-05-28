@@ -4,7 +4,7 @@
 static int
 test_person_only(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
+    ErlNifEnv *env = ep_test_env_create();
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
@@ -18,7 +18,7 @@ test_person_only(void)
 static int
 test_m1_load_and_encode(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
+    ErlNifEnv *env = ep_test_env_create();
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
@@ -31,22 +31,22 @@ test_m1_load_and_encode(void)
 static int
 test_proto3_syntax(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ep_state_t     *st;
-    ERL_NIF_TERM    cache, ret;
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    ERL_NIF_TERM cache, ret;
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
-    st = (ep_state_t *) enif_priv_data(env);
+    st = (ep_state_t *)enif_priv_data(env);
 
     cache = enif_make_list2(env,
-        enif_make_tuple2(env, make_atom(env, "syntax"), enif_make_string(env, "proto3", ERL_NIF_LATIN1)),
-        enif_make_tuple2(env,
-            enif_make_tuple2(env, make_atom(env, "msg"), enif_make_atom(env, "p3m")),
-            enif_make_list(env, 1,
-                enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "x"),
-                    enif_make_uint(env, 1), enif_make_uint(env, 1), st->atom_int32,
-                    st->atom_defaulty, enif_make_list(env, 0)))));
+                            enif_make_tuple2(env, make_atom(env, "syntax"), enif_make_string(env, "proto3", ERL_NIF_LATIN1)),
+                            enif_make_tuple2(env,
+                                             enif_make_tuple2(env, make_atom(env, "msg"), enif_make_atom(env, "p3m")),
+                                             enif_make_list(env, 1,
+                                                            enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "x"),
+                                                                             enif_make_uint(env, 1), enif_make_uint(env, 1), st->atom_int32,
+                                                                             st->atom_defaulty, enif_make_list(env, 0)))));
 
     if (setjmp(ep_test_exception_jmp) == 0) {
         ep_test_exception_active = 0;

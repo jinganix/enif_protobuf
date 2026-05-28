@@ -3,7 +3,7 @@
 int
 ep_cache_create(size_t size, ep_cache_t **cache)
 {
-    ep_cache_t     *ca;
+    ep_cache_t *ca;
 
     ca = _calloc(sizeof(ep_cache_t), 1);
     if (ca == NULL) {
@@ -32,12 +32,12 @@ ep_cache_create(size_t size, ep_cache_t **cache)
 void
 ep_cache_destroy(ep_cache_t **cache)
 {
-    uint32_t        i;
-    ep_cache_t     *ca = *cache;
+    uint32_t i;
+    ep_cache_t *ca = *cache;
 
-	if (*cache == NULL) {
-		return;
-	}
+    if (*cache == NULL) {
+        return;
+    }
 
     for (i = 0; i < ca->used; i++) {
 
@@ -77,16 +77,16 @@ ep_cache_insert(ep_node_t *node, ep_cache_t *cache)
 static int
 sort_compare_id(const void *a, const void *b)
 {
-    const uint32_t lhs = ((const ep_node_id_t *) a)->id;
-    const uint32_t rhs = ((const ep_node_id_t *) b)->id;
+    const uint32_t lhs = ((const ep_node_id_t *)a)->id;
+    const uint32_t rhs = ((const ep_node_id_t *)b)->id;
     return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_type(const void *a, const void *b)
 {
-    const uintptr_t lhs = (uintptr_t) ((const ep_node_name_t *) a)->name;
-    const uintptr_t rhs = (uintptr_t) ((const ep_node_name_t *) b)->name;
+    const uintptr_t lhs = (uintptr_t)((const ep_node_name_t *)a)->name;
+    const uintptr_t rhs = (uintptr_t)((const ep_node_name_t *)b)->name;
     return (lhs > rhs) - (lhs < rhs);
 }
 
@@ -100,15 +100,15 @@ ep_cache_sort(ep_cache_t *cache)
 static int
 search_compare_id(const void *a, const void *b)
 {
-    const uint32_t lhs = *((const uint32_t *) a);
-    const uint32_t rhs = ((const ep_node_id_t *) b)->id;
+    const uint32_t lhs = *((const uint32_t *)a);
+    const uint32_t rhs = ((const ep_node_id_t *)b)->id;
     return (lhs > rhs) - (lhs < rhs);
 }
 
 ep_node_t *
 get_node_by_id(uint32_t id, ep_cache_t *cache)
 {
-    ep_node_id_t   *i_node;
+    ep_node_id_t *i_node;
 
     i_node = bsearch(&id, cache->ids, cache->used, sizeof(ep_node_id_t), search_compare_id);
     if (i_node == NULL) {
@@ -121,8 +121,8 @@ get_node_by_id(uint32_t id, ep_cache_t *cache)
 static int
 search_compare_name(const void *a, const void *b)
 {
-    const uintptr_t lhs = (uintptr_t) *((const ERL_NIF_TERM *) a);
-    const uintptr_t rhs = (uintptr_t) ((const ep_node_name_t *) b)->name;
+    const uintptr_t lhs = (uintptr_t)*((const ERL_NIF_TERM *)a);
+    const uintptr_t rhs = (uintptr_t)((const ep_node_name_t *)b)->name;
     return (lhs > rhs) - (lhs < rhs);
 }
 

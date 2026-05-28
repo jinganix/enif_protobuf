@@ -21,37 +21,37 @@ enum {
 };
 
 typedef struct {
-    int             kind;
+    int kind;
     union {
-        char       *atom;
-        int         i;
-        unsigned    u;
-        int64_t     i64;
-        uint64_t    u64;
-        double      d;
+        char *atom;
+        int i;
+        unsigned u;
+        int64_t i64;
+        uint64_t u64;
+        double d;
         ErlNifBinary bin;
         struct {
-            ERL_NIF_TERM   *elems;
-            int             arity;
+            ERL_NIF_TERM *elems;
+            int arity;
         } tuple;
         struct {
-            ERL_NIF_TERM    head;
-            ERL_NIF_TERM    tail;
+            ERL_NIF_TERM head;
+            ERL_NIF_TERM tail;
         } list;
     } u;
 } term_cell_t;
 
 struct enif_environment_t {
-    ep_state_t     *state;
-    term_cell_t    *terms;
-    size_t          terms_cap;
-    size_t          terms_used;
+    ep_state_t *state;
+    term_cell_t *terms;
+    size_t terms_cap;
+    size_t terms_used;
 };
 
 static term_cell_t *
 term_at(ErlNifEnv *env, ERL_NIF_TERM t)
 {
-    size_t      idx = (size_t) t - 1;
+    size_t idx = (size_t)t - 1;
 
     if (t == 0 || idx >= env->terms_used) {
         return NULL;
@@ -62,10 +62,10 @@ term_at(ErlNifEnv *env, ERL_NIF_TERM t)
 static ERL_NIF_TERM
 term_new(ErlNifEnv *env, int kind)
 {
-    term_cell_t    *c;
+    term_cell_t *c;
 
     if (env->terms_used >= env->terms_cap) {
-        size_t      ncap = env->terms_cap ? env->terms_cap * 2 : 64;
+        size_t ncap = env->terms_cap ? env->terms_cap * 2 : 64;
 
         env->terms = realloc(env->terms, ncap * sizeof(term_cell_t));
         if (env->terms == NULL) {
@@ -77,13 +77,13 @@ term_new(ErlNifEnv *env, int kind)
     c = &env->terms[env->terms_used++];
     memset(c, 0, sizeof(*c));
     c->kind = kind;
-    return (ERL_NIF_TERM) env->terms_used;
+    return (ERL_NIF_TERM)env->terms_used;
 }
 
 ErlNifEnv *
 ep_test_env_create(void)
 {
-    ErlNifEnv      *env = calloc(1, sizeof(ErlNifEnv));
+    ErlNifEnv *env = calloc(1, sizeof(ErlNifEnv));
 
     return env;
 }
@@ -91,8 +91,8 @@ ep_test_env_create(void)
 void
 ep_test_env_destroy(ErlNifEnv *env)
 {
-    size_t          i;
-    term_cell_t    *c;
+    size_t i;
+    term_cell_t *c;
 
     if (env == NULL) {
         return;
@@ -112,7 +112,7 @@ ep_test_env_destroy(ErlNifEnv *env)
     if (env->state != NULL) {
         ep_cache_destroy(&env->state->cache);
         if (env->state->tdata != NULL) {
-            uint32_t    j;
+            uint32_t j;
 
             for (j = 0; j < env->state->lock_n; j++) {
                 _free(env->state->tdata[j].stack.spots);
@@ -177,8 +177,8 @@ enif_release_binary(ErlNifBinary *bin)
 ERL_NIF_TERM
 enif_raise_exception(ErlNifEnv *env, ERL_NIF_TERM reason)
 {
-    (void) env;
-    (void) reason;
+    (void)env;
+    (void)reason;
     ep_test_exception_active = 1;
     longjmp(ep_test_exception_jmp, 1);
     return 0;
@@ -193,7 +193,7 @@ enif_make_badarg(ErlNifEnv *env)
 int
 enif_make_existing_atom(ErlNifEnv *env, const char *name, ERL_NIF_TERM *atom, int flags)
 {
-    (void) flags;
+    (void)flags;
     *atom = enif_make_atom(env, name);
     return 1;
 }
@@ -201,12 +201,11 @@ enif_make_existing_atom(ErlNifEnv *env, const char *name, ERL_NIF_TERM *atom, in
 static ERL_NIF_TERM
 find_atom(ErlNifEnv *env, const char *name)
 {
-    size_t          i;
+    size_t i;
 
     for (i = 0; i < env->terms_used; i++) {
-        if (env->terms[i].kind == TERM_ATOM
-            && strcmp(env->terms[i].u.atom, name) == 0) {
-            return (ERL_NIF_TERM) (i + 1);
+        if (env->terms[i].kind == TERM_ATOM && strcmp(env->terms[i].u.atom, name) == 0) {
+            return (ERL_NIF_TERM)(i + 1);
         }
     }
     return 0;
@@ -215,9 +214,9 @@ find_atom(ErlNifEnv *env, const char *name)
 ERL_NIF_TERM
 enif_make_atom(ErlNifEnv *env, const char *name)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    existing = find_atom(env, name);
-    ERL_NIF_TERM    t;
+    term_cell_t *c;
+    ERL_NIF_TERM existing = find_atom(env, name);
+    ERL_NIF_TERM t;
 
     if (existing != 0) {
         return existing;
@@ -232,7 +231,7 @@ enif_make_atom(ErlNifEnv *env, const char *name)
 int
 enif_is_atom(ErlNifEnv *env, ERL_NIF_TERM term)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     return c != NULL && c->kind == TERM_ATOM;
 }
@@ -240,7 +239,7 @@ enif_is_atom(ErlNifEnv *env, ERL_NIF_TERM term)
 int
 enif_get_int(ErlNifEnv *env, ERL_NIF_TERM term, int *ip)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c == NULL) {
         return 0;
@@ -250,7 +249,7 @@ enif_get_int(ErlNifEnv *env, ERL_NIF_TERM term, int *ip)
         return 1;
     }
     if (c->kind == TERM_UINT) {
-        *ip = (int) c->u.u;
+        *ip = (int)c->u.u;
         return 1;
     }
     return 0;
@@ -259,7 +258,7 @@ enif_get_int(ErlNifEnv *env, ERL_NIF_TERM term, int *ip)
 int
 enif_get_uint(ErlNifEnv *env, ERL_NIF_TERM term, unsigned int *ip)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c == NULL) {
         return 0;
@@ -269,7 +268,7 @@ enif_get_uint(ErlNifEnv *env, ERL_NIF_TERM term, unsigned int *ip)
         return 1;
     }
     if (c->kind == TERM_INT && c->u.i >= 0) {
-        *ip = (unsigned) c->u.i;
+        *ip = (unsigned)c->u.i;
         return 1;
     }
     return 0;
@@ -278,7 +277,7 @@ enif_get_uint(ErlNifEnv *env, ERL_NIF_TERM term, unsigned int *ip)
 int
 enif_get_int64(ErlNifEnv *env, ERL_NIF_TERM term, ErlNifSInt64 *ip)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c == NULL) {
         return 0;
@@ -297,7 +296,7 @@ enif_get_int64(ErlNifEnv *env, ERL_NIF_TERM term, ErlNifSInt64 *ip)
 int
 enif_get_uint64(ErlNifEnv *env, ERL_NIF_TERM term, ErlNifUInt64 *ip)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c == NULL) {
         return 0;
@@ -316,9 +315,9 @@ enif_get_uint64(ErlNifEnv *env, ERL_NIF_TERM term, ErlNifUInt64 *ip)
 int
 enif_get_string(ErlNifEnv *env, ERL_NIF_TERM term, char *buf, unsigned len, int flags)
 {
-    ErlNifBinary    bin;
+    ErlNifBinary bin;
 
-    (void) flags;
+    (void)flags;
     if (!enif_inspect_binary(env, term, &bin)) {
         return 0;
     }
@@ -333,7 +332,7 @@ enif_get_string(ErlNifEnv *env, ERL_NIF_TERM term, char *buf, unsigned len, int 
 int
 enif_get_double(ErlNifEnv *env, ERL_NIF_TERM term, double *dp)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c != NULL && c->kind == TERM_DOUBLE) {
         *dp = c->u.d;
@@ -345,8 +344,8 @@ enif_get_double(ErlNifEnv *env, ERL_NIF_TERM term, double *dp)
 ERL_NIF_TERM
 enif_make_int(ErlNifEnv *env, int i)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_INT);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_INT);
 
     c = term_at(env, t);
     c->u.i = i;
@@ -356,8 +355,8 @@ enif_make_int(ErlNifEnv *env, int i)
 ERL_NIF_TERM
 enif_make_uint(ErlNifEnv *env, unsigned int i)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_UINT);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_UINT);
 
     c = term_at(env, t);
     c->u.u = i;
@@ -367,8 +366,8 @@ enif_make_uint(ErlNifEnv *env, unsigned int i)
 ERL_NIF_TERM
 enif_make_int64(ErlNifEnv *env, ErlNifSInt64 i)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_INT64);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_INT64);
 
     c = term_at(env, t);
     c->u.i64 = i;
@@ -378,8 +377,8 @@ enif_make_int64(ErlNifEnv *env, ErlNifSInt64 i)
 ERL_NIF_TERM
 enif_make_uint64(ErlNifEnv *env, ErlNifUInt64 i)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_UINT64);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_UINT64);
 
     c = term_at(env, t);
     c->u.u64 = i;
@@ -389,8 +388,8 @@ enif_make_uint64(ErlNifEnv *env, ErlNifUInt64 i)
 ERL_NIF_TERM
 enif_make_double(ErlNifEnv *env, double d)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_DOUBLE);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_DOUBLE);
 
     c = term_at(env, t);
     c->u.d = d;
@@ -400,8 +399,8 @@ enif_make_double(ErlNifEnv *env, double d)
 ERL_NIF_TERM
 enif_make_binary(ErlNifEnv *env, ErlNifBinary *bin)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_BINARY);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_BINARY);
 
     c = term_at(env, t);
     c->u.bin.size = bin->size;
@@ -415,12 +414,12 @@ enif_make_binary(ErlNifEnv *env, ErlNifBinary *bin)
 ERL_NIF_TERM
 enif_make_string(ErlNifEnv *env, const char *string, int flags)
 {
-    ErlNifBinary    bin;
-    ERL_NIF_TERM    t;
+    ErlNifBinary bin;
+    ERL_NIF_TERM t;
 
-    (void) flags;
+    (void)flags;
     bin.size = strlen(string);
-    bin.data = (unsigned char *) string;
+    bin.data = (unsigned char *)string;
     t = enif_make_binary(env, &bin);
     return t;
 }
@@ -428,14 +427,14 @@ enif_make_string(ErlNifEnv *env, const char *string, int flags)
 ERL_NIF_TERM
 enif_make_list(ErlNifEnv *env, unsigned n, ...)
 {
-    ERL_NIF_TERM    tail = term_new(env, TERM_NIL);
-    va_list         ap;
-    unsigned        i;
+    ERL_NIF_TERM tail = term_new(env, TERM_NIL);
+    va_list ap;
+    unsigned i;
 
-    (void) n;
+    (void)n;
     va_start(ap, n);
     for (i = 0; i < n; i++) {
-        ERL_NIF_TERM    head = va_arg(ap, ERL_NIF_TERM);
+        ERL_NIF_TERM head = va_arg(ap, ERL_NIF_TERM);
 
         tail = enif_make_list_cell(env, head, tail);
     }
@@ -446,8 +445,8 @@ enif_make_list(ErlNifEnv *env, unsigned n, ...)
 ERL_NIF_TERM
 enif_make_list_cell(ErlNifEnv *env, ERL_NIF_TERM head, ERL_NIF_TERM tail)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_LIST_CELL);
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_LIST_CELL);
 
     c = term_at(env, t);
     c->u.list.head = head;
@@ -458,12 +457,12 @@ enif_make_list_cell(ErlNifEnv *env, ERL_NIF_TERM head, ERL_NIF_TERM tail)
 static ERL_NIF_TERM
 make_tuple_n(ErlNifEnv *env, unsigned arity, const ERL_NIF_TERM *elems)
 {
-    term_cell_t    *c;
-    ERL_NIF_TERM    t = term_new(env, TERM_TUPLE);
-    unsigned        i;
+    term_cell_t *c;
+    ERL_NIF_TERM t = term_new(env, TERM_TUPLE);
+    unsigned i;
 
     c = term_at(env, t);
-    c->u.tuple.arity = (int) arity;
+    c->u.tuple.arity = (int)arity;
     c->u.tuple.elems = malloc(arity * sizeof(ERL_NIF_TERM));
     for (i = 0; i < arity; i++) {
         c->u.tuple.elems[i] = elems[i];
@@ -474,9 +473,9 @@ make_tuple_n(ErlNifEnv *env, unsigned arity, const ERL_NIF_TERM *elems)
 ERL_NIF_TERM
 enif_make_tuple(ErlNifEnv *env, unsigned arity, ...)
 {
-    ERL_NIF_TERM    buf[16];
-    va_list         ap;
-    unsigned        i;
+    ERL_NIF_TERM buf[16];
+    va_list ap;
+    unsigned i;
 
     va_start(ap, arity);
     for (i = 0; i < arity && i < 16; i++) {
@@ -489,7 +488,7 @@ enif_make_tuple(ErlNifEnv *env, unsigned arity, ...)
 ERL_NIF_TERM
 enif_make_tuple2(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2)
 {
-    ERL_NIF_TERM    buf[2] = { e1, e2 };
+    ERL_NIF_TERM buf[2] = {e1, e2};
 
     return make_tuple_n(env, 2, buf);
 }
@@ -497,7 +496,7 @@ enif_make_tuple2(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2)
 ERL_NIF_TERM
 enif_make_tuple3(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM e3)
 {
-    ERL_NIF_TERM    buf[3] = { e1, e2, e3 };
+    ERL_NIF_TERM buf[3] = {e1, e2, e3};
 
     return make_tuple_n(env, 3, buf);
 }
@@ -505,16 +504,16 @@ enif_make_tuple3(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM 
 ERL_NIF_TERM
 enif_make_tuple4(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM e3, ERL_NIF_TERM e4)
 {
-    ERL_NIF_TERM    buf[4] = { e1, e2, e3, e4 };
+    ERL_NIF_TERM buf[4] = {e1, e2, e3, e4};
 
     return make_tuple_n(env, 4, buf);
 }
 
 ERL_NIF_TERM
 enif_make_tuple7(ErlNifEnv *env, ERL_NIF_TERM e1, ERL_NIF_TERM e2, ERL_NIF_TERM e3,
-    ERL_NIF_TERM e4, ERL_NIF_TERM e5, ERL_NIF_TERM e6, ERL_NIF_TERM e7)
+                 ERL_NIF_TERM e4, ERL_NIF_TERM e5, ERL_NIF_TERM e6, ERL_NIF_TERM e7)
 {
-    ERL_NIF_TERM    buf[7] = { e1, e2, e3, e4, e5, e6, e7 };
+    ERL_NIF_TERM buf[7] = {e1, e2, e3, e4, e5, e6, e7};
 
     return make_tuple_n(env, 7, buf);
 }
@@ -528,7 +527,7 @@ enif_make_tuple_from_array(ErlNifEnv *env, const ERL_NIF_TERM arr[], unsigned n)
 int
 enif_get_tuple(ErlNifEnv *env, ERL_NIF_TERM tpl, int *arity, const ERL_NIF_TERM **array)
 {
-    term_cell_t    *c = term_at(env, tpl);
+    term_cell_t *c = term_at(env, tpl);
 
     if (c == NULL || c->kind != TERM_TUPLE) {
         return 0;
@@ -541,7 +540,7 @@ enif_get_tuple(ErlNifEnv *env, ERL_NIF_TERM tpl, int *arity, const ERL_NIF_TERM 
 int
 enif_is_list(ErlNifEnv *env, ERL_NIF_TERM term)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     return c != NULL && (c->kind == TERM_LIST_CELL || c->kind == TERM_NIL);
 }
@@ -549,7 +548,7 @@ enif_is_list(ErlNifEnv *env, ERL_NIF_TERM term)
 int
 enif_is_tuple(ErlNifEnv *env, ERL_NIF_TERM term)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     return c != NULL && c->kind == TERM_TUPLE;
 }
@@ -557,7 +556,7 @@ enif_is_tuple(ErlNifEnv *env, ERL_NIF_TERM term)
 int
 enif_is_binary(ErlNifEnv *env, ERL_NIF_TERM term)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     return c != NULL && c->kind == TERM_BINARY;
 }
@@ -565,7 +564,7 @@ enif_is_binary(ErlNifEnv *env, ERL_NIF_TERM term)
 int
 enif_is_empty_list(ErlNifEnv *env, ERL_NIF_TERM term)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     return c != NULL && c->kind == TERM_NIL;
 }
@@ -573,7 +572,7 @@ enif_is_empty_list(ErlNifEnv *env, ERL_NIF_TERM term)
 int
 enif_get_list_cell(ErlNifEnv *env, ERL_NIF_TERM list, ERL_NIF_TERM *head, ERL_NIF_TERM *tail)
 {
-    term_cell_t    *c = term_at(env, list);
+    term_cell_t *c = term_at(env, list);
 
     if (c == NULL || c->kind != TERM_LIST_CELL) {
         return 0;
@@ -586,8 +585,8 @@ enif_get_list_cell(ErlNifEnv *env, ERL_NIF_TERM list, ERL_NIF_TERM *head, ERL_NI
 int
 enif_get_list_length(ErlNifEnv *env, ERL_NIF_TERM list, unsigned *len)
 {
-    unsigned        n = 0;
-    ERL_NIF_TERM    head, tail = list;
+    unsigned n = 0;
+    ERL_NIF_TERM head, tail = list;
 
     while (enif_get_list_cell(env, tail, &head, &tail)) {
         n++;
@@ -602,8 +601,8 @@ enif_get_list_length(ErlNifEnv *env, ERL_NIF_TERM list, unsigned *len)
 int
 enif_make_reverse_list(ErlNifEnv *env, ERL_NIF_TERM list, ERL_NIF_TERM *list_out)
 {
-    ERL_NIF_TERM    rev = term_new(env, TERM_NIL);
-    ERL_NIF_TERM    head, tail = list;
+    ERL_NIF_TERM rev = term_new(env, TERM_NIL);
+    ERL_NIF_TERM head, tail = list;
 
     while (enif_get_list_cell(env, tail, &head, &tail)) {
         rev = enif_make_list_cell(env, head, rev);
@@ -615,7 +614,7 @@ enif_make_reverse_list(ErlNifEnv *env, ERL_NIF_TERM list, ERL_NIF_TERM *list_out
 int
 enif_inspect_binary(ErlNifEnv *env, ERL_NIF_TERM term, ErlNifBinary *bin)
 {
-    term_cell_t    *c = term_at(env, term);
+    term_cell_t *c = term_at(env, term);
 
     if (c == NULL || c->kind != TERM_BINARY) {
         return 0;
@@ -646,14 +645,30 @@ enif_compare(ERL_NIF_TERM lhs, ERL_NIF_TERM rhs)
 ErlNifRWLock *
 enif_rwlock_create(char *name)
 {
-    (void) name;
-    return (ErlNifRWLock *) 1;
+    (void)name;
+    return (ErlNifRWLock *)1;
 }
 
-void enif_rwlock_rwlock(ErlNifRWLock *lock) { (void) lock; }
-void enif_rwlock_rwunlock(ErlNifRWLock *lock) { (void) lock; }
-void enif_rwlock_rlock(ErlNifRWLock *lock) { (void) lock; }
-void enif_rwlock_runlock(ErlNifRWLock *lock) { (void) lock; }
+void
+enif_rwlock_rwlock(ErlNifRWLock *lock)
+{
+    (void)lock;
+}
+void
+enif_rwlock_rwunlock(ErlNifRWLock *lock)
+{
+    (void)lock;
+}
+void
+enif_rwlock_rlock(ErlNifRWLock *lock)
+{
+    (void)lock;
+}
+void
+enif_rwlock_runlock(ErlNifRWLock *lock)
+{
+    (void)lock;
+}
 
 ErlNifTid
 enif_thread_self(void)
@@ -664,8 +679,8 @@ enif_thread_self(void)
 int
 ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
 {
-    ep_state_t     *state;
-    uint32_t        i;
+    ep_state_t *state;
+    uint32_t i;
 
     state = _calloc(sizeof(ep_state_t), 1);
     if (state == NULL) {
@@ -681,8 +696,8 @@ ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
     }
 
     for (i = 0; i < lock_n; i++) {
-        ep_stack_t     *stack = &state->tdata[i].stack;
-        ep_enc_t       *enc = &state->tdata[i].enc;
+        ep_stack_t *stack = &state->tdata[i].stack;
+        ep_enc_t *enc = &state->tdata[i].enc;
 
         stack->size = STACK_INIT_SIZE;
         stack->spots = _calloc(sizeof(ep_spot_t), stack->size);
@@ -741,11 +756,11 @@ ep_test_init_state(ErlNifEnv *env, unsigned lock_n)
 int
 ep_test_build_int32_msg(ErlNifEnv *env, const char *msg_name, uint32_t fnum)
 {
-    ep_state_t     *state = env->state;
-    ep_node_t      *node;
-    ep_field_t     *field;
+    ep_state_t *state = env->state;
+    ep_node_t *node;
+    ep_field_t *field;
     ep_fnum_field_t *ff;
-    ERL_NIF_TERM    name;
+    ERL_NIF_TERM name;
 
     if (ep_cache_create(4, &state->cache) != RET_OK) {
         return RET_ERROR;
@@ -788,7 +803,7 @@ ep_test_build_int32_msg(ErlNifEnv *env, const char *msg_name, uint32_t fnum)
 void
 ep_test_set_opts(ErlNifEnv *env, int with_utf8, int string_as_list)
 {
-    ep_state_t     *state = env->state;
+    ep_state_t *state = env->state;
 
     state->opts.with_utf8 = with_utf8 ? 1 : 0;
     state->opts.string_as_list = string_as_list ? 1 : 0;
@@ -797,15 +812,14 @@ ep_test_set_opts(ErlNifEnv *env, int with_utf8, int string_as_list)
 void
 ep_test_prepare_decode_stack(ErlNifEnv *env)
 {
-    ep_state_t     *state = env->state;
-    ep_cache_t     *cache = state->cache;
-    ep_stack_t     *stack;
-    ep_spot_t      *spot;
-    uint32_t        i, max_fields = 0;
+    ep_state_t *state = env->state;
+    ep_cache_t *cache = state->cache;
+    ep_stack_t *stack;
+    ep_spot_t *spot;
+    uint32_t i, max_fields = 0;
 
     for (i = 0; i < cache->used; i++) {
-        if (cache->names[i].node->n_type == node_msg
-            || cache->names[i].node->n_type == node_map) {
+        if (cache->names[i].node->n_type == node_msg || cache->names[i].node->n_type == node_map) {
             if (cache->names[i].node->size > max_fields) {
                 max_fields = cache->names[i].node->size;
             }

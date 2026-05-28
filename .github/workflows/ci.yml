@@ -12,6 +12,19 @@ on:
     - cron: '0 10 * * *' # Once per day at 10am UTC
 
 jobs:
+  c-format:
+    name: C code format
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install clang-format
+        # Default apt `clang-format` is 14 (22.04) or 18 (24.04); this project
+        # requires >= 19 (see .clang-format / AlwaysBreakAfterReturnType).
+        run: sudo apt-get update && sudo apt-get install -y clang-format-20
+      - name: Check C formatting
+        run: CLANG_FORMAT=clang-format-20 make c-format-check
+
   c-coverage:
     name: C source coverage
     runs-on: ubuntu-latest

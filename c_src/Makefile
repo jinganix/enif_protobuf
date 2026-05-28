@@ -11,6 +11,7 @@ ERL_INTERFACE_INCLUDE_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts\", [cod
 ERL_INTERFACE_LIB_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts\", [code:lib_dir(erl_interface, lib)])." -s erlang halt)
 
 C_SRC_DIR = $(CURDIR)
+BUILD = $(CURDIR)/build
 C_SRC_OUTPUT ?= $(CURDIR)/../priv/$(PROJECT).so
 
 NIF_SOURCES = \
@@ -84,12 +85,12 @@ cpp_verbose = $(cpp_verbose_$(V))
 link_verbose_0 = @echo " LD    " $(@F);
 link_verbose = $(link_verbose_$(V))
 
-OBJECTS = $(addsuffix .o, $(basename $(SOURCES)))
+OBJECTS = $(addprefix $(BUILD)/,$(addsuffix .o,$(notdir $(basename $(SOURCES)))))
 
 COMPILE_C = $(c_verbose) $(CC) $(CFLAGS) $(CPPFLAGS) -c
 COMPILE_CPP = $(cpp_verbose) $(CXX) $(CXXFLAGS) $(CPPFLAGS) -c
 
-$(C_SRC_OUTPUT): $(OBJECTS)
+$(C_SRC_OUTPUT): $(OBJECTS) | $(BUILD)
 	@mkdir -p $(BASEDIR)/priv/
 	$(link_verbose) $(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
 ifeq ($(OS),Windows_NT)
@@ -100,20 +101,25 @@ ifeq ($(OS),Windows_NT)
 	done
 endif
 
-%.o: %.c
-	$(COMPILE_C) $(OUTPUT_OPTION) $<
+$(BUILD)/%.o: $(C_SRC_DIR)/%.c | $(BUILD)
+	$(COMPILE_C) -o $@ $<
 
-%.o: %.cc
-	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+$(BUILD)/%.o: $(C_SRC_DIR)/%.cc | $(BUILD)
+	$(COMPILE_CPP) -o $@ $<
 
-%.o: %.C
-	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+$(BUILD)/%.o: $(C_SRC_DIR)/%.C | $(BUILD)
+	$(COMPILE_CPP) -o $@ $<
 
-%.o: %.cpp
-	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
+$(BUILD)/%.o: $(C_SRC_DIR)/%.cpp | $(BUILD)
+	$(COMPILE_CPP) -o $@ $<
+
+$(BUILD):
+	@mkdir -p $(BUILD)
 
 clean:
-	@rm -f $(C_SRC_OUTPUT) $(OBJECTS)
+	@rm -rf $(BUILD)
+	@rm -f $(C_SRC_DIR)/*.o $(C_SRC_DIR)/*.d
+	@rm -f $(C_SRC_OUTPUT)
 ifeq ($(OS),Windows_NT)
 	@rm -f $(BASEDIR)/priv/libgcc_s_seh-1.dll $(BASEDIR)/priv/libwinpthread-1.dll
 endif

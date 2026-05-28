@@ -6,8 +6,8 @@
 static int
 test_unpack_uint32_varint(void)
 {
-    unsigned char   buf[] = { 0x96, 0x01 };
-    uint32_t        val;
+    unsigned char buf[] = {0x96, 0x01};
+    uint32_t val;
 
     TEST_ASSERT(ep_unit_unpack_uint32(buf, sizeof(buf), &val) == 0);
     TEST_ASSERT_EQ(val, 150);
@@ -17,8 +17,8 @@ test_unpack_uint32_varint(void)
 static int
 test_unpack_truncated_varint(void)
 {
-    unsigned char   buf[] = { 0x80 };
-    uint32_t        val;
+    unsigned char buf[] = {0x80};
+    uint32_t val;
 
     if (setjmp(ep_test_exception_jmp) == 0) {
         ep_test_exception_active = 0;
@@ -32,27 +32,27 @@ test_unpack_truncated_varint(void)
 static int
 test_decode_int32_field(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    ep_state_t     *state;
-    ep_tdata_t     *tdata;
-    ep_node_t      *node;
-    ERL_NIF_TERM    ret;
-    int             arity, decoded;
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *state;
+    ep_tdata_t *tdata;
+    ep_node_t *node;
+    ERL_NIF_TERM ret;
+    int arity, decoded;
     const ERL_NIF_TERM *elems;
-    unsigned char   wire[] = { 0x08, 0x96, 0x01 };
+    unsigned char wire[] = {0x08, 0x96, 0x01};
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
     TEST_ASSERT(ep_test_build_int32_msg(env, "m1", 1) == RET_OK);
     ep_test_prepare_decode_stack(env);
 
-    state = (ep_state_t *) enif_priv_data(env);
+    state = (ep_state_t *)enif_priv_data(env);
     tdata = &state->tdata[0];
     node = get_node_by_name(enif_make_atom(env, "m1"), state->cache);
 
     TEST_ASSERT(enif_alloc_binary(sizeof(wire), &tdata->dec.bin));
     memcpy(tdata->dec.bin.data, wire, sizeof(wire));
-    tdata->dec.p = (char *) tdata->dec.bin.data;
+    tdata->dec.p = (char *)tdata->dec.bin.data;
     tdata->dec.end = tdata->dec.p + sizeof(wire);
     tdata->dec.term = enif_make_binary(env, &tdata->dec.bin);
 
@@ -77,8 +77,8 @@ test_decode_int32_field(void)
 static int
 test_decode_nested_truncated_payload(void)
 {
-    ErlNifEnv      *env = ep_test_env_create();
-    unsigned char   wire[] = { 0x0a, 0x05, 0x08 };
+    ErlNifEnv *env = ep_test_env_create();
+    unsigned char wire[] = {0x0a, 0x05, 0x08};
 
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
