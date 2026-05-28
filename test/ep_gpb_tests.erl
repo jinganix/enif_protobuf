@@ -73,7 +73,7 @@ skipping_with_oneof_test() ->
                 opts = []}]}]}],
     #m1{a = undefined} = decode_msg(<<32, 150, 1>>, m1, Defs).
 
-skipping_groups() ->
+skipping_groups_test() ->
     DefsO = [{{msg, x1}, [Field1 = #?gpb_field{name = f1, fnum = 1, rnum = 2,
         type = uint32, occurrence = required,
         opts = []}]}],
@@ -90,7 +90,7 @@ skipping_groups() ->
             name = g2f, fnum = 4, rnum = 2,
             type = uint32, occurrence = required,
             opts = []}]}],
-    X1 = encode_msg({x1, 38, {'x1.g1', {'x1.g2', 17}}}, DefsN),
+    X1 = gpb:encode_msg({x1, 38, {'x1.g1', {'x1.g2', 17}}}, DefsN),
     {x1, 38} = decode_msg(X1, x1, DefsO).
 
 decode_msg_simple_occurrence_test() ->
@@ -1003,6 +1003,22 @@ proto3_type_default_values_never_serialized_for_enums_test() ->
     <<>> = encode_msg({m, 0}, Defs), % when given as integer
     {m, e0} = decode_msg(<<>>, m, Defs).
 
+proto3_type_defaults_values_for_float_test() ->
+    DefsF = [{syntax, "proto3"},
+        {proto3_msgs, [m]},
+        {{msg, m}, [#?gpb_field{name = f, fnum = 1, rnum = 2, type = float,
+            occurrence = defaulty, opts = []}]}],
+    <<>> = encode_msg({m, 0.0}, DefsF),
+    %% -0.0 as a float or double: the signbit is 1, the rest of the bits are 0,
+    %% and it is little-endian.
+    <<13, 0, 0, 0, 128>> = encode_msg({m, -0.0}, DefsF),
+    DefsD = [{syntax, "proto3"},
+        {proto3_msgs, [m]},
+        {{msg, m}, [#?gpb_field{name = f, fnum = 1, rnum = 2, type = double,
+            occurrence = defaulty, opts = []}]}],
+    <<>> = encode_msg({m, 0.0}, DefsD),
+    <<9, 0, 0, 0, 0, 0, 0, 0, 128>> = encode_msg({m, -0.0}, DefsD).
+
 proto3_optional_test() ->
     Defs = [{proto_defs_version, 2},
         {syntax, "proto3"},
@@ -1018,15 +1034,7 @@ proto3_optional_test() ->
     #m1{a = undefined} = decode_msg(B2, m1, Defs),
     ok.
 
-groups_not_supported_test() ->
-    {skip, "protobuf groups are not supported by enif_protobuf"}.
-
-encode_decode_required_group() ->
-    %% message m1 {
-    %%   required group g = 30 {
-    %%     required fixed32 gf = 35;
-    %%   }
-    %% }
+encode_decode_required_group_test() ->
     Defs = [{{msg, m1}, [#?gpb_field{name = g, fnum = 30, rnum = 2,
         type = {group, 'm1.g'},
         occurrence = required, opts = []}]},
@@ -1035,14 +1043,11 @@ encode_decode_required_group() ->
             occurrence = required, opts = []}]}],
     M = {m1, {'m1.g', 17}},
     D = "f3 01 9d 02   11 00 00 00 f4 01",
-    %%   ^^^^^ ^^^^^   ^^^^^^^^^^^ ^^^^^
-    %%   GROUP TAG     17          GROUP
-    %%   START FIXED32             END
     B = hexundump(D),
     B = encode_msg(M, Defs),
     M = decode_msg(B, m1, Defs).
 
-encode_decode_repeated_and_optional_group() ->
+encode_decode_repeated_and_optional_group_test() ->
     Defs = [{{msg, m1}, [#?gpb_field{name = g, fnum = 31, rnum = 2,
         type = {group, 'm1.g'},
         occurrence = repeated, opts = []},
@@ -1057,32 +1062,16 @@ encode_decode_repeated_and_optional_group() ->
             occurrence = required, opts = []}]}],
     M1 = {m1, [{'m1.g', 17}, {'m1.g', 18}], undefined},
     B1 = hexundump("fb 01 a5 02   11 00 00 00 fc 01"
-    "fb 01 a5 02   12 00 00 00 fc 01"),
-    %%              ^^^^^ ^^^^^   ^^^^^^^^^^^ ^^^^^
-    %%              GROUP TAG     17,18       GROUP
-    %%              START FIXED32             END
+        "fb 01 a5 02   12 00 00 00 fc 01"),
     B1 = encode_msg(M1, Defs),
     M1 = decode_msg(B1, m1, Defs),
-    %% Now with merge
     M2 = {m1, [], {'m1.h', 99}},
-    B21 = hexundump("83 02 ad 02   11 00 00 00 84 02"), % 17 to be over-merged
-    B22 = hexundump("83 02 ad 02   63 00 00 00 84 02"), % 99 to replace
+    B21 = hexundump("83 02 ad 02   11 00 00 00 84 02"),
+    B22 = hexundump("83 02 ad 02   63 00 00 00 84 02"),
     B22 = encode_msg(M2, Defs),
     M2 = decode_msg(<<B21/binary, B22/binary>>, m1, Defs).
 
-%%hexdump(B) ->
-%%    string:to_lower(lists:concat([integer_to_list(C,16) || <<C:4>> <= B])).
-hexundump(S) ->
-    <<<<(list_to_integer([C], 16)):4>> || C <- S, is_hex_digit(C)>>.
-is_hex_digit(D) when $0 =< D, D =< $9 -> true;
-is_hex_digit(D) when $a =< D, D =< $f -> true;
-is_hex_digit(D) when $A =< D, D =< $F -> true;
-is_hex_digit(_) -> false.
-
-unknown_fields_not_supported_test() ->
-    {skip, "$unknown field passthrough is not supported by enif_protobuf"}.
-
-encode_decode_basic_unknowns() ->
+encode_decode_basic_unknowns_test() ->
     Field1 = #?gpb_field{name = a, fnum = 1, rnum = 2, type = string,
         occurrence = optional,
         opts = []},
@@ -1092,36 +1081,28 @@ encode_decode_basic_unknowns() ->
     Defs1 = [{{msg, msg}, [Field1,
         FieldU#?gpb_field{rnum = 3}]}],
     Defs2 = [{{msg, msg}, [Field1,
-        %% varint:
         #?gpb_field{name = n2, fnum = 2, rnum = 3, type = int32,
             occurrence = optional,
             opts = []},
-        %% 64 bits
         #?gpb_field{name = n3, fnum = 3, rnum = 4, type = fixed64,
             occurrence = optional,
             opts = []},
-        %% length-delimited
         #?gpb_field{name = n4, fnum = 4, rnum = 5, type = bytes,
             occurrence = optional,
             opts = []},
-        %% group
         #?gpb_field{name = n5, fnum = 5, rnum = 6,
             type = {group, gr},
             occurrence = optional,
             opts = []},
-        %% 32 bits
         #?gpb_field{name = n6, fnum = 6, rnum = 7, type = fixed32,
             occurrence = optional,
             opts = []},
-        %% --
         FieldU#?gpb_field{rnum = 8}]},
         {{group, gr}, [#?gpb_field{name = a, fnum = 10, rnum = 2, type = int32,
             occurrence = optional,
             opts = []}]}],
     Msg0 = {msg, "abc", 2, 3, <<4, 4>>, {gr, 5}, 6, []},
     E1 = encode_msg(Msg0, Defs2),
-    %% Decode with Defs1, unknown fields should end up in '$unknown'
-    %% Then encode this with the unknowns
     {msg, "abc", [_, _, _, _, _] = Unknowns} = Msg1 = decode_msg(E1, msg, Defs1),
     [{varint, 2, 2},
         {fixed64, 3, 3},
@@ -1129,11 +1110,10 @@ encode_decode_basic_unknowns() ->
         {group, 5, [{varint, 10, 5}]},
         {fixed32, 6, 6}] = Unknowns,
     E2 = encode_msg(Msg1, Defs1),
-    %% decode with richer defs, should get back orig:
     D2 = decode_msg(E2, msg, Defs2),
     ?assertEqual(Msg0, D2).
 
-encode_decode_repeated_unknowns() ->
+encode_decode_repeated_unknowns_test() ->
     Field1 = #?gpb_field{name = a, fnum = 1, rnum = 2, type = string,
         occurrence = optional,
         opts = []},
@@ -1143,22 +1123,99 @@ encode_decode_repeated_unknowns() ->
     Defs1 = [{{msg, msg}, [Field1,
         FieldU#?gpb_field{rnum = 3}]}],
     Defs2 = [{{msg, msg}, [Field1,
-        %% varint:
         #?gpb_field{name = nr, fnum = 2, rnum = 3, type = int32,
             occurrence = repeated,
             opts = []},
-        %% --
         FieldU#?gpb_field{rnum = 4}]}],
     Msg0 = {msg, "abc", [17, 18, 19, 20], []},
     E1 = encode_msg(Msg0, Defs2),
-    %% A repeated non-'packed' will be encoded as several fields, one
-    %% for each element in the repeated sequence, so expect 4 unknowns:
     {msg, "abc", [_, _, _, _] = Unknowns} = Msg1 = decode_msg(E1, msg, Defs1),
-    %% The order of the unknowns is important, check that:
     [{varint, 2, 17}, {varint, 2, 18}, {varint, 2, 19}, {varint, 2, 20}] = Unknowns,
     E2 = encode_msg(Msg1, Defs1),
     D2 = decode_msg(E2, msg, Defs2),
     ?assertEqual(Msg0, D2).
+
+hexundump(S) ->
+    <<<<(list_to_integer([C], 16)):4>> || C <- S, is_hex_digit(C)>>.
+is_hex_digit(D) when $0 =< D, D =< $9 -> true;
+is_hex_digit(D) when $a =< D, D =< $f -> true;
+is_hex_digit(D) when $A =< D, D =< $F -> true;
+is_hex_digit(_) -> false.
+
+%% -------------------------------------------------------------
+%% gpb library API tests (not part of enif_protobuf NIF scope)
+
+gpb_only_skip(Name) ->
+    {skip, "gpb library API, not enif_protobuf: " ++ atom_to_list(Name)}.
+
+decode_varint_test() -> gpb_only_skip(decode_varint).
+decode_overly_long_noncanonical_varints_test() ->
+    gpb_only_skip(decode_overly_long_noncanonical_varints).
+decode_fails_for_varints_of_too_many_bytes_test() ->
+    gpb_only_skip(decode_fails_for_varints_of_too_many_bytes).
+encode_varint_test() -> gpb_only_skip(encode_varint).
+decode_packet_test() -> gpb_only_skip(decode_packet).
+field_proplist_conversion_test() -> gpb_only_skip(field_proplist_conversion).
+gpb_error_on_decoding_test() -> gpb_only_skip(gpb_error_on_decoding).
+
+merging_second_required_integer_overrides_first_test() ->
+    gpb_only_skip(merging_second_required_integer_overrides_first).
+merging_second_optional_integer_overrides_undefined_test() ->
+    gpb_only_skip(merging_second_optional_integer_overrides_undefined).
+merging_undefined_does_not_overrides_defined_integer_test() ->
+    gpb_only_skip(merging_undefined_does_not_overrides_defined_integer).
+merging_sequences_test() -> gpb_only_skip(merging_sequences).
+merging_messages_recursively_test() -> gpb_only_skip(merging_messages_recursively).
+merging_optional_messages_recursively1_test() ->
+    gpb_only_skip(merging_optional_messages_recursively1).
+merging_optional_messages_recursively2_test() ->
+    gpb_only_skip(merging_optional_messages_recursively2).
+merge_oneof_test() -> gpb_only_skip(merge_oneof).
+merge_oneof_msg_test() -> gpb_only_skip(merge_oneof_msg).
+merge_map_test() -> gpb_only_skip(merge_map).
+
+verify_present_required_field_succeeds_test() ->
+    gpb_only_skip(verify_present_required_field_succeeds).
+verify_missing_required_field_fails_test() ->
+    gpb_only_skip(verify_missing_required_field_fails).
+verify_optional_undefined_field_is_ok_test() ->
+    gpb_only_skip(verify_optional_undefined_field_is_ok).
+verify_optional_present_field_is_ok_test() ->
+    gpb_only_skip(verify_optional_present_field_is_ok).
+verify_valid_repeated_field_succeeds_test() ->
+    gpb_only_skip(verify_valid_repeated_field_succeeds).
+verify_invalid_repeated_field_fails_test() ->
+    gpb_only_skip(verify_invalid_repeated_field_fails).
+verify_valid_integer_succeeds_test() -> gpb_only_skip(verify_valid_integer_succeeds).
+verify_integer_type_and_range_fails_test_() ->
+    {timeout, 59, fun() -> gpb_only_skip(verify_integer_type_and_range_fails) end}.
+verify_bad_integer_fails_test() -> gpb_only_skip(verify_bad_integer_fails).
+verify_valid_booleans_succeed_test() -> gpb_only_skip(verify_valid_booleans_succeed).
+verify_bad_booleans_fails_test() -> gpb_only_skip(verify_bad_booleans_fails).
+verify_valid_float_succeeds_test() -> gpb_only_skip(verify_valid_float_succeeds).
+verify_bad_floats_fails_test() -> gpb_only_skip(verify_bad_floats_fails).
+verify_valid_string_succeeds_test() -> gpb_only_skip(verify_valid_string_succeeds).
+verify_invalid_string_fails_test() -> gpb_only_skip(verify_invalid_string_fails).
+verify_valid_bytes_succeeds_test() -> gpb_only_skip(verify_valid_bytes_succeeds).
+verify_invalid_bytes_fails_test() -> gpb_only_skip(verify_invalid_bytes_fails).
+verify_valid_enum_succeeds_test() -> gpb_only_skip(verify_valid_enum_succeeds).
+verify_enum_as_integer_succeeds_test() -> gpb_only_skip(verify_enum_as_integer_succeeds).
+verify_invalid_enum_fails_test() -> gpb_only_skip(verify_invalid_enum_fails).
+verify_valid_submsg_succeeds_test() -> gpb_only_skip(verify_valid_submsg_succeeds).
+verify_valid_map_succeeds_test() -> gpb_only_skip(verify_valid_map_succeeds).
+verify_invalid_submsg_fails_test() -> gpb_only_skip(verify_invalid_submsg_fails).
+verify_invalid_optional_submsg_fails_test() ->
+    gpb_only_skip(verify_invalid_optional_submsg_fails).
+verify_invalid_oneof_test() -> gpb_only_skip(verify_invalid_oneof).
+verify_invalid_map_fails_test() -> gpb_only_skip(verify_invalid_map_fails).
+verify_proto3_fields_mandatory_test() ->
+    gpb_only_skip(verify_proto3_fields_mandatory).
+verify_path_when_failure_test() -> gpb_only_skip(verify_path_when_failure).
+verify_required_group_test() -> gpb_only_skip(verify_required_group).
+verify_repeated_and_optional_group_test() ->
+    gpb_only_skip(verify_repeated_and_optional_group).
+
+version_test() -> gpb_only_skip(version).
 
 -ifndef(NO_HAVE_MAPS).
 msg_to_from_map_test() ->

@@ -369,6 +369,69 @@ test_empty_bytes_proto3(void)
     return 0;
 }
 
+static int
+load_cache_term(ErlNifEnv *env, ERL_NIF_TERM cache)
+{
+    ep_state_t *st = (ep_state_t *)enif_priv_data(env);
+    ERL_NIF_TERM ret;
+
+    if (setjmp(ep_test_exception_jmp) != 0) {
+        return RET_ERROR;
+    }
+    ep_test_exception_active = 0;
+    ret = ep_load_cache(env, cache);
+    return ret == st->atom_ok ? RET_OK : RET_ERROR;
+}
+
+static int
+test_group_optional_and_repeated_roundtrip(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    ERL_NIF_TERM g_field, h_field, msg_def, g_def, h_def, cache, msg;
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+
+    g_field = enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "g"),
+                               enif_make_uint(env, 1), enif_make_uint(env, 2),
+                               enif_make_tuple2(env, st->atom_group, enif_make_atom(env, "g")),
+                               st->atom_optional, enif_make_list(env, 0));
+    h_field = enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "h"),
+                               enif_make_uint(env, 2), enif_make_uint(env, 3),
+                               enif_make_tuple2(env, st->atom_group, enif_make_atom(env, "h")),
+                               st->atom_repeated, enif_make_list(env, 0));
+
+    msg_def = enif_make_tuple2(env,
+                               enif_make_tuple2(env, st->atom_msg, enif_make_atom(env, "gm")),
+                               enif_make_list(env, 2, g_field, h_field));
+    g_def = enif_make_tuple2(env,
+                             enif_make_tuple2(env, st->atom_group, enif_make_atom(env, "g")),
+                             enif_make_list(env, 1,
+                                            enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "gf"),
+                                                             enif_make_uint(env, 10), enif_make_uint(env, 2), st->atom_int32,
+                                                             st->atom_optional, enif_make_list(env, 0))));
+    h_def = enif_make_tuple2(env,
+                             enif_make_tuple2(env, st->atom_group, enif_make_atom(env, "h")),
+                             enif_make_list(env, 1,
+                                            enif_make_tuple7(env, st->atom_field, enif_make_atom(env, "hf"),
+                                                             enif_make_uint(env, 11), enif_make_uint(env, 2), st->atom_int32,
+                                                             st->atom_optional, enif_make_list(env, 0))));
+    cache = enif_make_list(env, 3, msg_def, g_def, h_def);
+    TEST_ASSERT(load_cache_term(env, cache) == RET_OK);
+
+    msg = enif_make_tuple3(env, enif_make_atom(env, "gm"),
+                           enif_make_tuple2(env, enif_make_atom(env, "g"), enif_make_int(env, 7)),
+                           enif_make_list(env, 2,
+                                          enif_make_tuple2(env, enif_make_atom(env, "h"), enif_make_int(env, 8)),
+                                          enif_make_tuple2(env, enif_make_atom(env, "h"), enif_make_int(env, 9))));
+    TEST_ASSERT(ep_test_roundtrip(env, msg, "gm") == RET_OK);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
 int
 run_test_coverage_gaps(void)
 {
@@ -386,5 +449,6 @@ run_test_coverage_gaps(void)
     TEST_RUN(test_free_node_map_oneof);
     TEST_RUN(test_string_iolist_encode);
     TEST_RUN(test_empty_bytes_proto3);
+    TEST_RUN(test_group_optional_and_repeated_roundtrip);
     return 0;
 }

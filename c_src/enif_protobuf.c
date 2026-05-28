@@ -66,6 +66,16 @@ make_atom(ErlNifEnv *env, const char *name)
     return enif_make_atom(env, name);
 }
 
+static inline ERL_NIF_TERM
+check_proper_list_tail(ErlNifEnv *env, ERL_NIF_TERM tail)
+{
+    if (!enif_is_empty_list(env, tail)) {
+        raise_exception(env, tail);
+    }
+
+    return RET_OK;
+}
+
 ERL_NIF_TERM
 ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
 {
@@ -117,6 +127,8 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
         term = tail;
     }
 
+    check_proper_list_tail(env, term);
+
     if (len == 0) {
         raise_exception(env, list);
     }
@@ -142,16 +154,21 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
                 free_node(node);
             }
             ep_cache_destroy(&cache);
-            raise_exception(env, ret);
+            return ret;
         }
 
         if (node != NULL) {
-            if (node->n_type == node_msg || node->n_type == node_map) {
+            if (node->n_type == node_msg || node->n_type == node_map || node->n_type == node_group) {
                 max_fields = max_fields >= node->size ? max_fields : node->size;
             }
             ep_cache_insert(node, cache);
         }
         term = tail;
+    }
+
+    if (!enif_is_empty_list(env, term)) {
+        ep_cache_destroy(&cache);
+        raise_exception(env, term);
     }
 
     if (!cache->used) {
@@ -277,6 +294,11 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
         EP_MAKE_ATOM(env, state, enum);
         EP_MAKE_ATOM(env, state, msg);
         EP_MAKE_ATOM(env, state, map);
+        EP_MAKE_ATOM(env, state, group);
+        EP_MAKE_ATOM(env, state, unknown);
+        (state)->atom_d_unknown = make_atom(env, "$unknown");
+        EP_MAKE_ATOM(env, state, varint);
+        (state)->atom_length_delimited = make_atom(env, "length_delimited");
 
         EP_MAKE_ATOM(env, state, required);
         EP_MAKE_ATOM(env, state, optional);
@@ -461,6 +483,10 @@ set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         }
 
         head = tail;
+    }
+
+    if (!enif_is_empty_list(env, head)) {
+        return enif_make_badarg(env);
     }
 
     return state->atom_ok;

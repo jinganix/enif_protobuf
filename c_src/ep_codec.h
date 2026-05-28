@@ -16,7 +16,8 @@ typedef enum {
     WIRE_TYPE_VARINT = 0,
     WIRE_TYPE_64BIT = 1,
     WIRE_TYPE_LENGTH_PREFIXED = 2,
-    /* "Start group" and "end group" wire types are unsupported. */
+    WIRE_TYPE_START_GROUP = 3,
+    WIRE_TYPE_END_GROUP = 4,
     WIRE_TYPE_32BIT = 5,
 } wire_type_e;
 

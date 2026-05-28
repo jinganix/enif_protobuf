@@ -129,7 +129,8 @@ typedef enum {
     field_enum = 16,
     field_msg = 17,
     field_map = 18,
-    field_oneof = 19
+    field_oneof = 19,
+    field_group = 20
 } field_type_e;
 
 typedef enum {
@@ -144,7 +145,8 @@ typedef enum {
     node_msg = 1,
     node_enum = 2,
     node_oneof = 3,
-    node_map = 4
+    node_map = 4,
+    node_group = 5
 } node_type_e;
 
 struct ep_stack_s {
@@ -190,6 +192,8 @@ struct ep_spot_s {
     size_t t_used;
     ERL_NIF_TERM result;
     char *end_sentinel;
+    char *saved_outer_end;
+    ep_field_t *group_field;
 };
 
 typedef struct ep_tdata_s {
@@ -247,6 +251,11 @@ struct ep_state_s {
     ERL_NIF_TERM atom_enum;
     ERL_NIF_TERM atom_msg;
     ERL_NIF_TERM atom_map;
+    ERL_NIF_TERM atom_group;
+    ERL_NIF_TERM atom_unknown;
+    ERL_NIF_TERM atom_d_unknown;
+    ERL_NIF_TERM atom_varint;
+    ERL_NIF_TERM atom_length_delimited;
 
     ERL_NIF_TERM atom_required;
     ERL_NIF_TERM atom_optional;
