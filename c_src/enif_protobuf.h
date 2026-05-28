@@ -341,8 +341,6 @@ _calloc(size_t nmemb, size_t size)
 ERL_NIF_TERM
 make_atom(ErlNifEnv *env, const char *name);
 
-#if defined(EPB_UNIT_TEST)
 ERL_NIF_TERM ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list);
-#endif
 
 #endif

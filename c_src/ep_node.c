@@ -51,19 +51,25 @@ stack_ensure_size(ErlNifEnv *env, ep_stack_t *stack, size_t size);
 static int
 sort_compare_name_field(const void *a, const void *b)
 {
-    return (int) (((ep_field_t *) a)->name - ((ep_field_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) ((const ep_field_t *) a)->name;
+    const uintptr_t rhs = (uintptr_t) ((const ep_field_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_msg_field(const void *a, const void *b)
 {
-    return (int) (((ep_field_t *) a)->rnum - ((ep_field_t *) b)->rnum);
+    const uint32_t lhs = ((const ep_field_t *) a)->rnum;
+    const uint32_t rhs = ((const ep_field_t *) b)->rnum;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_fnum_field(const void *a, const void *b)
 {
-    return (int) (((ep_fnum_field_t *) a)->fnum - ((ep_fnum_field_t *) b)->fnum);
+    const int32_t lhs = ((const ep_fnum_field_t *) a)->fnum;
+    const int32_t rhs = ((const ep_fnum_field_t *) b)->fnum;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 ep_node_t *
@@ -134,13 +140,17 @@ free_node(ep_node_t *node)
 static int
 sort_compare_enum_field(const void *a, const void *b)
 {
-    return (int) (((ep_enum_field_t *) a)->name - ((ep_enum_field_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) ((const ep_enum_field_t *) a)->name;
+    const uintptr_t rhs = (uintptr_t) ((const ep_enum_field_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_enum_v_field(const void *a, const void *b)
 {
-    return (int) (((ep_enum_field_t *) a)->value - ((ep_enum_field_t *) b)->value);
+    const int32_t lhs = ((const ep_enum_field_t *) a)->value;
+    const int32_t rhs = ((const ep_enum_field_t *) b)->value;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 ERL_NIF_TERM
@@ -809,29 +819,39 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
 int
 get_field_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((ep_field_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) *((const ERL_NIF_TERM *) a);
+    const uintptr_t rhs = (uintptr_t) ((const ep_field_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 int
 get_map_field_compare_fnum(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((ep_field_t *) b)->fnum);
+    const int32_t lhs = *((const int32_t *) a);
+    const int32_t rhs = ((const ep_field_t *) b)->fnum;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 int
 get_field_compare_fnum(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((ep_fnum_field_t *) b)->fnum);
+    const int32_t lhs = *((const int32_t *) a);
+    const int32_t rhs = ((const ep_fnum_field_t *) b)->fnum;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 int
 get_enum_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((ep_enum_field_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) *((const ERL_NIF_TERM *) a);
+    const uintptr_t rhs = (uintptr_t) ((const ep_enum_field_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 int
 get_enum_compare_value(const void *a, const void *b)
 {
-    return (int) (*((int32_t *) a) - ((ep_enum_field_t *) b)->value);
+    const int32_t lhs = *((const int32_t *) a);
+    const int32_t rhs = ((const ep_enum_field_t *) b)->value;
+    return (lhs > rhs) - (lhs < rhs);
 }

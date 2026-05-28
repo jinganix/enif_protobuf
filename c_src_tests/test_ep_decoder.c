@@ -1,4 +1,5 @@
 #include "../c_src/enif_protobuf.h"
+#include "ep_test_schema.h"
 #include "stub/erl_nif_stub.h"
 #include "test.h"
 
@@ -73,11 +74,27 @@ test_decode_int32_field(void)
     return 0;
 }
 
+static int
+test_decode_nested_truncated_payload(void)
+{
+    ErlNifEnv      *env = ep_test_env_create();
+    unsigned char   wire[] = { 0x0a, 0x05, 0x08 };
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    TEST_ASSERT(ep_test_load_nested_cache(env) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "outer", wire, sizeof(wire)) == RET_ERROR);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
 int
 run_test_ep_decoder(void)
 {
     TEST_RUN(test_unpack_uint32_varint);
     TEST_RUN(test_unpack_truncated_varint);
     TEST_RUN(test_decode_int32_field);
+    TEST_RUN(test_decode_nested_truncated_payload);
     return 0;
 }

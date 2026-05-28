@@ -77,13 +77,17 @@ ep_cache_insert(ep_node_t *node, ep_cache_t *cache)
 static int
 sort_compare_id(const void *a, const void *b)
 {
-    return (int) (((ep_node_id_t *) a)->id - ((ep_node_id_t *) b)->id);
+    const uint32_t lhs = ((const ep_node_id_t *) a)->id;
+    const uint32_t rhs = ((const ep_node_id_t *) b)->id;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_type(const void *a, const void *b)
 {
-    return (int) (((ep_node_name_t *) a)->name - ((ep_node_name_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) ((const ep_node_name_t *) a)->name;
+    const uintptr_t rhs = (uintptr_t) ((const ep_node_name_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 void
@@ -96,7 +100,9 @@ ep_cache_sort(ep_cache_t *cache)
 static int
 search_compare_id(const void *a, const void *b)
 {
-    return (int) (*((uint32_t *) a) - ((ep_node_id_t *) b)->id);
+    const uint32_t lhs = *((const uint32_t *) a);
+    const uint32_t rhs = ((const ep_node_id_t *) b)->id;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 ep_node_t *
@@ -115,7 +121,9 @@ get_node_by_id(uint32_t id, ep_cache_t *cache)
 static int
 search_compare_name(const void *a, const void *b)
 {
-    return (int) (*((ERL_NIF_TERM *) a) - ((ep_node_name_t *) b)->name);
+    const uintptr_t lhs = (uintptr_t) *((const ERL_NIF_TERM *) a);
+    const uintptr_t rhs = (uintptr_t) ((const ep_node_name_t *) b)->name;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 ep_node_t *

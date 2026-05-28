@@ -909,6 +909,12 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
     spot->pos = 0;
     spot->end_sentinel = dec->end;
 
+    /*
+     * Iterative decoder:
+     * - stack spots track nested message/map contexts
+     * - each length-delimited sub-message tightens dec->end with a sentinel
+     * This avoids recursive calls and keeps allocations stable per scheduler.
+     */
     dec->result = 0;
     while (spot >= stack->spots) {
 
@@ -1020,6 +1026,9 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->type = spot_tuple;
 
                         check_ret(ret, do_unpack_uint32(env, dec, &size));
+                        if (size > (uint32_t) (dec->end - dec->p)) {
+                            raise_exception(env, dec->term);
+                        }
                         spot->end_sentinel = dec->p + size;
                         dec->end = spot->end_sentinel;
 
@@ -1052,6 +1061,9 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->type = spot_tuple;
 
                         check_ret(ret, do_unpack_uint32(env, dec, &size));
+                        if (size > (uint32_t) (dec->end - dec->p)) {
+                            raise_exception(env, dec->term);
+                        }
                         spot->end_sentinel = dec->p + size;
                         dec->end = spot->end_sentinel;
 

@@ -303,13 +303,17 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static int
 search_compare_lock(const void *a, const void *b)
 {
-    return (int) ((size_t) *((ErlNifTid *) a) - (size_t) ((ep_lock_t *) b)->tid);
+    const ErlNifTid lhs = *((const ErlNifTid *) a);
+    const ErlNifTid rhs = ((const ep_lock_t *) b)->tid;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static int
 sort_compare_lock(const void *a, const void *b)
 {
-    return (int) ((size_t) ((ep_lock_t *) a)->tid - (size_t) ((ep_lock_t *) b)->tid);
+    const ErlNifTid lhs = ((const ep_lock_t *) a)->tid;
+    const ErlNifTid rhs = ((const ep_lock_t *) b)->tid;
+    return (lhs > rhs) - (lhs < rhs);
 }
 
 static inline void
@@ -463,15 +467,23 @@ set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     ep_state_t     *state = (ep_state_t *) enif_priv_data(env);
     int32_t         arity;
     ERL_NIF_TERM    head, tail, *array;
+    ERL_NIF_TERM    opt_with_utf8, opt_string_as_list;
 
-    if (argc != 1 && !enif_is_list(env, argv[0])) {
+    if (argc != 1 || !enif_is_list(env, argv[0])) {
         return enif_make_badarg(env);
     }
+
+    /*
+     * Resolve option atoms once per call; avoids repeated atom lookups
+     * when callers pass longer option lists.
+     */
+    opt_with_utf8 = make_atom(env, "with_utf8");
+    opt_string_as_list = make_atom(env, "string_as_list");
 
     head = argv[0];
     while (enif_get_list_cell(env, head, &head, &tail)) {
         if (enif_get_tuple(env, head, &arity, to_const(array)) && arity == 2) {
-            if (array[0] == make_atom(env, "with_utf8")) {
+            if (array[0] == opt_with_utf8) {
                 if (array[1] == state->atom_true) {
                     state->opts.with_utf8 = 1;
                 } else if (array[1] == state->atom_false) {
@@ -479,7 +491,7 @@ set_opts_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
                 } else {
                     return enif_make_badarg(env);
                 }
-            } else if (array[0] == make_atom(env, "string_as_list")) {
+            } else if (array[0] == opt_string_as_list) {
                 if (array[1] == state->atom_true) {
                     state->opts.string_as_list = 1;
                 } else if (array[1] == state->atom_false) {

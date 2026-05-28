@@ -802,7 +802,7 @@ ERL_NIF_TERM
 encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
 {
     size_t          i, payload_len;
-    int32_t         arity;
+    int             arity;
     ep_enc_t       *enc;
     ep_spot_t      *spot;
     ep_stack_t     *stack;
@@ -819,8 +819,12 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
         raise_exception(env, term);
     }
 
+    /*
+     * Top-level message tuples are {'MsgName', Field1, Field2, ...}.
+     * Cache entries store only payload field count, so validate arity-1.
+     */
     spot->node = get_node_by_name(spot->array[0], state->cache);
-    if (spot->node == NULL || (arity - 1) != spot->node->size) {
+    if (spot->node == NULL || arity <= 0 || (uint32_t) (arity - 1) != spot->node->size) {
         raise_exception(env, spot->array[0]);
     }
     (spot->array)++;
@@ -943,7 +947,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
                         }
 
                         spot->node = field->sub_node;
-                        if (spot->node == NULL || arity != spot->node->size) {
+                        if (spot->node == NULL || arity < 0 || (uint32_t) arity != spot->node->size) {
                             raise_exception(env, term);
                         }
 
