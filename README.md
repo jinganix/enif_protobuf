@@ -318,6 +318,14 @@ The per-scheduler encode buffer grows geometrically to fit the largest message e
 shrunk afterwards; it is released when the NIF is unloaded (VM exit). This is a deliberate trade-off
 for the fast path.
 
+### How does it handle malformed wire data?
+
+Decoding is strict, following the reference C++/Java parsers: a tag is a varint32 (at most
+five bytes, bits above bit 31 dropped), a length prefix must be a strict varint32, group
+nesting is capped at 100 and reserved wire types raise. A malformed binary raises instead of
+returning a partially decoded message, so `decode/2` is safe on untrusted input. gpb is more
+lenient about oversized tags; for those inputs the two implementations may disagree.
+
 ### Does it work on Windows?
 
 `rebar.config` has a `win32` make hook, but CI only covers Linux and macOS.
@@ -353,7 +361,7 @@ current `master` without tagging.
 
 ```shell
 gh secret set HEX_API_KEY                    # once: key from https://hex.pm/dashboard/keys
-git tag v1.0.1 && git push origin v1.0.1     # releases are cut by pushing a tag
+git tag v1.1.0 && git push origin v1.1.0     # releases are cut by pushing a tag
 ```
 
 **From your machine**, the way [jiffy](https://github.com/davisp/jiffy) does it:

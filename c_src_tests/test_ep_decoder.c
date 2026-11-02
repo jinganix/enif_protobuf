@@ -433,6 +433,63 @@ test_decode_tag_overflowing_32bits_fails(void)
 }
 
 static int
+test_unpack_tag_varint32(void)
+{
+    uint32_t tag, wire_type;
+    /* 5-byte tag with bit 34 set: truncated to field 2 / wire 0. */
+    unsigned char trunc[] = {0x90, 0x80, 0x80, 0x80, 0x70};
+    /* 5-byte non-minimal tag for field 2. */
+    unsigned char padded[] = {0x90, 0x80, 0x80, 0x80, 0x00};
+    /* 6-byte tag: not a varint32, even though its value is small. */
+    unsigned char six[] = {0x88, 0x80, 0x80, 0x80, 0x80, 0x00};
+
+    TEST_ASSERT(ep_unit_unpack_tag(trunc, sizeof(trunc), &tag, &wire_type) == 0);
+    TEST_ASSERT_EQ(tag, 2);
+    TEST_ASSERT_EQ(wire_type, WIRE_TYPE_VARINT);
+
+    TEST_ASSERT(ep_unit_unpack_tag(padded, sizeof(padded), &tag, &wire_type) == 0);
+    TEST_ASSERT_EQ(tag, 2);
+
+    if (setjmp(ep_test_exception_jmp) == 0) {
+        ep_test_exception_active = 0;
+        TEST_ASSERT(ep_unit_unpack_tag(six, sizeof(six), &tag, &wire_type) != 0);
+    } else {
+        TEST_ASSERT(ep_test_exception_active);
+    }
+    return 0;
+}
+
+static int
+test_unpack_length_strict_varint32(void)
+{
+    uint32_t len;
+    /* 5-byte non-minimal encoding of length 1: in range, accepted. */
+    unsigned char ok[] = {0x81, 0x80, 0x80, 0x80, 0x00};
+    /* Fifth byte above 0x0f: out of range, rejected (a tag would truncate). */
+    unsigned char wide[] = {0x80, 0x80, 0x80, 0x80, 0x70};
+    /* Six bytes encoding zero: rejected. */
+    unsigned char six[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x00};
+
+    TEST_ASSERT(ep_unit_unpack_length(ok, sizeof(ok), &len) == 0);
+    TEST_ASSERT_EQ(len, 1);
+
+    if (setjmp(ep_test_exception_jmp) == 0) {
+        ep_test_exception_active = 0;
+        TEST_ASSERT(ep_unit_unpack_length(wide, sizeof(wide), &len) != 0);
+    } else {
+        TEST_ASSERT(ep_test_exception_active);
+    }
+
+    if (setjmp(ep_test_exception_jmp) == 0) {
+        ep_test_exception_active = 0;
+        TEST_ASSERT(ep_unit_unpack_length(six, sizeof(six), &len) != 0);
+    } else {
+        TEST_ASSERT(ep_test_exception_active);
+    }
+    return 0;
+}
+
+static int
 test_decode_repeated_msg_wrong_wire_type_fails(void)
 {
     ErlNifEnv *env = ep_test_env_create();
@@ -637,6 +694,8 @@ run_test_ep_decoder(void)
     TEST_RUN(test_decode_deep_nested_groups_fail);
     TEST_RUN(test_decode_group_tag_on_scalar_field_skips);
     TEST_RUN(test_decode_tag_overflowing_32bits_fails);
+    TEST_RUN(test_unpack_tag_varint32);
+    TEST_RUN(test_unpack_length_strict_varint32);
     TEST_RUN(test_unpack_additional_scalars);
     TEST_RUN(test_unpack_failure_paths);
     TEST_RUN(test_decode_packed_more_types);

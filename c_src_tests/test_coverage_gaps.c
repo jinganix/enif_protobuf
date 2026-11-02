@@ -204,7 +204,9 @@ test_high_field_number_tag(void)
     TEST_ASSERT(env != NULL);
     TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
     st = (ep_state_t *)enif_priv_data(env);
-    TEST_ASSERT(ep_test_load_single_field(env, "t_hi", "f", 536870912u, st->atom_int32,
+    /* 2^29 - 1 is the largest field number a varint32 tag can express; 2^29 and
+     * above set bit 32 and are rejected by the reference parsers. */
+    TEST_ASSERT(ep_test_load_single_field(env, "t_hi", "f", 536870911u, st->atom_int32,
                                           st->atom_optional, NULL, 0) == RET_OK);
     TEST_ASSERT(ep_test_roundtrip(env,
                                   enif_make_tuple2(env, enif_make_atom(env, "t_hi"), enif_make_int(env, 1)),

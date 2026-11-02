@@ -57,6 +57,34 @@ do_unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, uint32_t *val)
     return RET_OK;
 }
 
+/* Length prefixes are a strict varint32: at most five bytes and no bit above
+ * bit 31. Unlike a tag, an out-of-range prefix is invalid, not truncated (the
+ * reference parsers reject it). */
+static inline ERL_NIF_TERM
+unpack_length(ErlNifEnv *env, ep_dec_t *dec, uint32_t *len)
+{
+    uint32_t result = 0, shift = 0, i;
+    char *p = dec->p;
+    char *end = dec->end;
+
+    for (i = 0; i < 5 && p < end; i++) {
+        uint8_t byte = (uint8_t)*p++;
+
+        if (i == 4 && (byte & 0x7f) > 0x0f) {
+            break;
+        }
+        result |= (uint32_t)(byte & 0x7f) << shift;
+        if ((byte & 0x80) == 0) {
+            dec->p = p;
+            *len = result;
+            return RET_OK;
+        }
+        shift += 7;
+    }
+
+    raise_exception(env, dec->term);
+}
+
 static inline ERL_NIF_TERM
 unpack_uint32(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
 {
@@ -304,7 +332,7 @@ unpack_bytes(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
     ErlNifSInt64 offset;
     ERL_NIF_TERM ret;
 
-    check_ret(ret, do_unpack_uint32(env, dec, &len));
+    check_ret(ret, unpack_length(env, dec, &len));
 
     if (dec->p + len <= dec->end) {
         offset = (ErlNifSInt64)(dec->p - (char *)(dec->bin.data));
@@ -328,7 +356,7 @@ unpack_string(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term)
         return unpack_bytes(env, dec, term);
     }
 
-    check_ret(ret, do_unpack_uint32(env, dec, &len));
+    check_ret(ret, unpack_length(env, dec, &len));
     end = dec->p + len;
 
     if (len == 0) {
@@ -389,26 +417,35 @@ unpack_enum(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_node_t *node)
 static inline ERL_NIF_TERM
 unpack_tag(ErlNifEnv *env, ep_dec_t *dec, uint32_t *tag, wire_type_e *wire_type)
 {
-    uint64_t val, tag_val;
-    ERL_NIF_TERM ret;
-
-    check_ret(ret, unpack_varint_u64(env, dec, &val));
-    *wire_type = (wire_type_e)(val & 7);
-    tag_val = val >> 3;
+    uint32_t result = 0, shift = 0, i;
+    char *p = dec->p;
+    char *end = dec->end;
 
     /*
-     * Reject malformed tags early:
-     * - field number 0 is invalid in protobuf wire format
-     * - field numbers that do not fit in 32 bits would silently wrap
-     * - wire types 6 and 7 are reserved/invalid
+     * A tag is a varint32, like the reference parsers: at most five bytes, and
+     * bits above bit 31 (the high bits of the fifth byte) are dropped before
+     * the field number is derived. A sixth byte is malformed; a zero field
+     * number and wire types 6/7 are invalid.
      */
-    if (tag_val == 0 || tag_val > 0xFFFFFFFFULL || *wire_type > WIRE_TYPE_32BIT) {
-        enif_raise_exception(env, dec->term);
-        return RET_ERROR;
+    for (i = 0; i < 5 && p < end; i++) {
+        uint8_t byte = (uint8_t)*p++;
+
+        result |= (uint32_t)(byte & 0x7f) << shift;
+        if ((byte & 0x80) == 0) {
+            uint32_t fnum = result >> 3;
+
+            *wire_type = (wire_type_e)(result & 7);
+            if (fnum == 0 || *wire_type > WIRE_TYPE_32BIT) {
+                break;
+            }
+            dec->p = p;
+            *tag = fnum;
+            return RET_OK;
+        }
+        shift += 7;
     }
 
-    *tag = (uint32_t)tag_val;
-    return RET_OK;
+    raise_exception(env, dec->term);
 }
 
 static inline int
@@ -425,7 +462,7 @@ unpack_element_packed(ErlNifEnv *env, ep_dec_t *dec, ERL_NIF_TERM *term, ep_fiel
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
     ERL_NIF_TERM ret, head = state->atom_undefined;
 
-    check_ret(ret, do_unpack_uint32(env, dec, &len));
+    check_ret(ret, unpack_length(env, dec, &len));
 
     if (len > (uint32_t)(dec->end - dec->p)) {
         raise_exception(env, dec->term);
@@ -688,7 +725,7 @@ skip_length_prefixed(ErlNifEnv *env, ep_dec_t *dec)
     uint32_t len;
     ERL_NIF_TERM ret;
 
-    check_ret(ret, do_unpack_uint32(env, dec, &len));
+    check_ret(ret, unpack_length(env, dec, &len));
 
     if (dec->p + len <= dec->end) {
         dec->p += len;
@@ -828,7 +865,7 @@ collect_unknown_length(ErlNifEnv *env, ep_dec_t *dec, uint32_t fnum, ERL_NIF_TER
     ErlNifBinary bin;
     ERL_NIF_TERM ret;
 
-    check_ret(ret, do_unpack_uint32(env, dec, &len));
+    check_ret(ret, unpack_length(env, dec, &len));
     if (len > (uint32_t)(dec->end - dec->p)) {
         raise_exception(env, dec->term);
     }
@@ -1358,7 +1395,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
 
                             spot->type = spot_tuple;
 
-                            check_ret(ret, do_unpack_uint32(env, dec, &size));
+                            check_ret(ret, unpack_length(env, dec, &size));
                             if (size > (uint32_t)(dec->end - dec->p)) {
                                 raise_exception(env, dec->term);
                             }
@@ -1403,7 +1440,7 @@ decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node)
                         spot->field = field;
                         spot->type = spot_tuple;
 
-                        check_ret(ret, do_unpack_uint32(env, dec, &size));
+                        check_ret(ret, unpack_length(env, dec, &size));
                         if (size > (uint32_t)(dec->end - dec->p)) {
                             raise_exception(env, dec->term);
                         }
@@ -1458,6 +1495,32 @@ ep_unit_unpack_uint32(const unsigned char *buf, size_t len, uint32_t *out)
 
     ep_unit_dec_init(&dec, buf, len);
     if (do_unpack_uint32(NULL, &dec, out) != RET_OK) {
+        return -1;
+    }
+    return 0;
+}
+
+int
+ep_unit_unpack_tag(const unsigned char *buf, size_t len, uint32_t *tag, uint32_t *wire_type)
+{
+    ep_dec_t dec;
+    wire_type_e wt;
+
+    ep_unit_dec_init(&dec, buf, len);
+    if (unpack_tag(NULL, &dec, tag, &wt) != RET_OK) {
+        return -1;
+    }
+    *wire_type = (uint32_t)wt;
+    return 0;
+}
+
+int
+ep_unit_unpack_length(const unsigned char *buf, size_t len, uint32_t *out)
+{
+    ep_dec_t dec;
+
+    ep_unit_dec_init(&dec, buf, len);
+    if (unpack_length(NULL, &dec, out) != RET_OK) {
         return -1;
     }
     return 0;

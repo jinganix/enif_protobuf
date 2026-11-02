@@ -94,6 +94,8 @@ ERL_NIF_TERM
 decode(ErlNifEnv *env, ep_tdata_t *tdata, ep_node_t *node);
 
 #if defined(EPB_UNIT_TEST)
+int ep_unit_unpack_tag(const unsigned char *buf, size_t len, uint32_t *tag, uint32_t *wire_type);
+int ep_unit_unpack_length(const unsigned char *buf, size_t len, uint32_t *out);
 size_t ep_unit_pack_uint32(uint32_t val, unsigned char *buf, size_t cap);
 size_t ep_unit_pack_sint32(int32_t val, unsigned char *buf, size_t cap);
 size_t ep_unit_pack_int32(int32_t val, unsigned char *buf, size_t cap);
