@@ -21,6 +21,10 @@
 #endif
 #define DEBUG_MEM 0
 
+#ifndef EPB_USE_PBW
+#define EPB_USE_PBW 0
+#endif
+
 #define RET_OK 0
 #define RET_ERROR 1
 
@@ -114,6 +118,9 @@ typedef struct ep_enc_s ep_enc_t;
 typedef struct ep_dec_s ep_dec_t;
 typedef struct ep_spot_s ep_spot_t;
 typedef struct ep_stack_s ep_stack_t;
+#if EPB_USE_PBW
+typedef struct ep_pbw_cache_s ep_pbw_cache_t;
+#endif
 
 typedef enum {
     // field_unknown = INT_MIN,
@@ -234,10 +241,16 @@ typedef struct ep_tdata_s {
     ep_stack_t stack;
     ep_enc_t enc;
     ep_dec_t dec;
+#if EPB_USE_PBW
+    struct pbw_ctx *pbw_ctx; /* reused arena + encode buffer (EPB_USE_PBW only) */
+#endif
 } ep_tdata_t;
 
 struct ep_state_s {
     ep_cache_t *cache;
+#if EPB_USE_PBW
+    ep_pbw_cache_t *pbw_cache;
+#endif
 
     uint32_t lock_n;
     uint32_t slot_next;

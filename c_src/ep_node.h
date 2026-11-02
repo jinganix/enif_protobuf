@@ -43,6 +43,9 @@ struct ep_node_s {
     void *v_fields;
     ep_field_t **fnum_map; /* indexed by fnum, or NULL when not dense enough */
     uint32_t fnum_map_size;
+#if EPB_USE_PBW
+    void *pbw; /* pbwire adapter meta (EPB_USE_PBW only) */
+#endif
 };
 
 struct ep_node_id_s {

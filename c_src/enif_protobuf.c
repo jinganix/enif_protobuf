@@ -1,4 +1,7 @@
 #include "enif_protobuf.h"
+#if EPB_USE_PBW
+#include "ep_pbw.h"
+#endif
 
 #if defined(_MSC_VER)
 #include <intrin.h>
@@ -83,6 +86,9 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
     ep_spot_t *spot;
     ep_node_t *node = NULL;
     ep_cache_t *cache, *old_cache;
+#if EPB_USE_PBW
+    ep_pbw_cache_t *new_pbw = NULL, *old_pbw = NULL;
+#endif
     ep_stack_t *stack;
     int32_t arity;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
@@ -181,6 +187,13 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
         ep_cache_destroy(&cache);
         return ret;
     }
+#if EPB_USE_PBW
+    new_pbw = ep_pbw_cache_build(cache);
+    if (new_pbw == NULL) {
+        ep_cache_destroy(&cache);
+        raise_exception(env, make_atom(env, "pbw_schema"));
+    }
+#endif
 
     /*
      * Swap cache under write lock so readers never observe a half-updated
@@ -190,6 +203,9 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
 
     if ((ret = stack_ensure_all(env, cache)) != RET_OK) {
         enif_rwlock_rwunlock(state->cache_lock);
+#if EPB_USE_PBW
+        ep_pbw_cache_destroy(new_pbw);
+#endif
         ep_cache_destroy(&cache);
         return ret;
     }
@@ -202,6 +218,9 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
                 t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * ((size_t)max_fields + 1));
                 if (t_arr == NULL) {
                     enif_rwlock_rwunlock(state->cache_lock);
+#if EPB_USE_PBW
+                    ep_pbw_cache_destroy(new_pbw);
+#endif
                     ep_cache_destroy(&cache);
                     raise_exception(env, make_atom(env, "alloc"));
                 }
@@ -212,6 +231,10 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
         }
     }
     old_cache = state->cache;
+#if EPB_USE_PBW
+    old_pbw = state->pbw_cache;
+    state->pbw_cache = new_pbw;
+#endif
     state->cache = cache;
 
     enif_rwlock_rwunlock(state->cache_lock);
@@ -219,6 +242,11 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
     if (old_cache != NULL) {
         ep_cache_destroy(&old_cache);
     }
+#if EPB_USE_PBW
+    if (old_pbw != NULL) {
+        ep_pbw_cache_destroy(old_pbw);
+    }
+#endif
 
     return state->atom_ok;
 }
@@ -357,6 +385,9 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
     ep_cache_t *old_cache = NULL;
+#if EPB_USE_PBW
+    ep_pbw_cache_t *old_pbw = NULL;
+#endif
 
     if (argc != 0) {
         return enif_make_badarg(env);
@@ -366,10 +397,19 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     enif_rwlock_rwlock(state->cache_lock);
     old_cache = state->cache;
     state->cache = NULL;
+#if EPB_USE_PBW
+    old_pbw = state->pbw_cache;
+    state->pbw_cache = NULL;
+#endif
     enif_rwlock_rwunlock(state->cache_lock);
     if (old_cache != NULL) {
         ep_cache_destroy(&old_cache);
     }
+#if EPB_USE_PBW
+    if (old_pbw != NULL) {
+        ep_pbw_cache_destroy(old_pbw);
+    }
+#endif
 
     return state->atom_ok;
 }
@@ -377,8 +417,8 @@ purge_cache_0(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 static ERL_NIF_TERM
 encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
-    ep_tdata_t *tdata;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ep_tdata_t *tdata;
     ERL_NIF_TERM ret;
 
     if (argc != 1 || !enif_is_tuple(env, argv[0])) {
@@ -389,6 +429,19 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
+#if EPB_USE_PBW
+    tdata = ep_get_tdata(state);
+    if (tdata->pbw_ctx == NULL) {
+        tdata->pbw_ctx = pbw_ctx_new();
+        if (tdata->pbw_ctx == NULL) {
+            raise_exception(env, make_atom(env, "alloc"));
+        }
+    }
+    enif_rwlock_rlock(state->cache_lock);
+    ret = ep_pbw_encode(env, state, state->pbw_cache, tdata->pbw_ctx, argv[0]);
+    enif_rwlock_runlock(state->cache_lock);
+    return ret;
+#else
     tdata = ep_get_tdata(state);
     if (tdata->enc.mem == NULL) {
         tdata->enc.mem = _calloc(ENC_INIT_SIZE, 1);
@@ -407,14 +460,15 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     enif_rwlock_runlock(state->cache_lock);
 
     return ret;
+#endif
 }
 
 static ERL_NIF_TERM
 decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
 {
     ep_node_t *node;
-    ep_tdata_t *tdata;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
+    ep_tdata_t *tdata;
     ERL_NIF_TERM ret;
 
     if (argc != 2 || !enif_is_binary(env, argv[0]) || !enif_is_atom(env, argv[1])) {
@@ -425,8 +479,25 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
         raise_exception(env, make_atom(env, "cache_not_exists"));
     }
 
-    tdata = ep_get_tdata(state);
     enif_rwlock_rlock(state->cache_lock);
+#if EPB_USE_PBW
+    tdata = ep_get_tdata(state);
+    if (tdata->pbw_ctx == NULL) {
+        tdata->pbw_ctx = pbw_ctx_new();
+        if (tdata->pbw_ctx == NULL) {
+            raise_exception(env, make_atom(env, "alloc"));
+        }
+    }
+    node = get_node_by_name(argv[1], state->cache);
+    if (node == NULL) {
+        enif_rwlock_runlock(state->cache_lock);
+        raise_exception(env, argv[1]);
+    }
+    ret = ep_pbw_decode(env, state, state->pbw_cache, tdata->pbw_ctx, argv[0], node);
+    enif_rwlock_runlock(state->cache_lock);
+    return ret;
+#else
+    tdata = ep_get_tdata(state);
     if (!enif_inspect_binary(env, argv[0], &(tdata->dec.bin))) {
         enif_rwlock_runlock(state->cache_lock);
         raise_exception(env, argv[0]);
@@ -447,6 +518,7 @@ decode_2(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     enif_rwlock_runlock(state->cache_lock);
 
     return ret;
+#endif
 }
 
 static ERL_NIF_TERM

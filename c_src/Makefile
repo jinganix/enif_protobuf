@@ -68,11 +68,21 @@ endif
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
+# Experimental pbwire-backed codec (c_src/ep_pbw.c); the default is the native
+# term-driven codec in ep_encoder.c / ep_decoder.c.
+CFLAGS += -DEPB_USE_PBW=1
+
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei -lpthread
 LDFLAGS += -shared
 
 SOURCES := $(shell find $(C_SRC_DIR) -type f \( -name "*.c" -o -name "*.C" -o -name "*.cc" -o -name "*.cpp" \) ! -path "*/test/*")
 endif
+
+# Vendored pbwire core (c_src/pbwire) is built with a pbw_ object prefix so its
+# file names cannot collide with the native codec objects.
+PBW_SOURCES := $(wildcard $(C_SRC_DIR)/pbwire/*.c)
+SOURCES := $(filter-out $(PBW_SOURCES),$(SOURCES))
+PBW_OBJECTS := $(addprefix $(BUILD)/pbw_,$(addsuffix .o,$(notdir $(basename $(PBW_SOURCES)))))
 
 # Verbosity.
 
@@ -90,9 +100,9 @@ OBJECTS = $(addprefix $(BUILD)/,$(addsuffix .o,$(notdir $(basename $(SOURCES))))
 COMPILE_C = $(c_verbose) $(CC) $(CFLAGS) $(CPPFLAGS) -c
 COMPILE_CPP = $(cpp_verbose) $(CXX) $(CXXFLAGS) $(CPPFLAGS) -c
 
-$(C_SRC_OUTPUT): $(OBJECTS) | $(BUILD)
+$(C_SRC_OUTPUT): $(OBJECTS) $(PBW_OBJECTS) | $(BUILD)
 	@mkdir -p $(BASEDIR)/priv/
-	$(link_verbose) $(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
+	$(link_verbose) $(CC) $(OBJECTS) $(PBW_OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
 ifeq ($(OS),Windows_NT)
 	@for dll in $(WIN_RUNTIME_DLLS); do \
 		if [ -f "$(MINGW_BIN)$$dll" ]; then \
@@ -103,9 +113,13 @@ endif
 
 # Rebuild objects when headers change; struct layouts live there.
 $(OBJECTS): $(wildcard $(C_SRC_DIR)/*.h)
+$(PBW_OBJECTS): $(wildcard $(C_SRC_DIR)/pbwire/*.h)
 
 $(BUILD)/%.o: $(C_SRC_DIR)/%.c | $(BUILD)
 	$(COMPILE_C) -o $@ $<
+
+$(BUILD)/pbw_%.o: $(C_SRC_DIR)/pbwire/%.c | $(BUILD)
+	$(COMPILE_C) -I $(C_SRC_DIR)/pbwire -o $@ $<
 
 $(BUILD)/%.o: $(C_SRC_DIR)/%.cc | $(BUILD)
 	$(COMPILE_CPP) -o $@ $<
