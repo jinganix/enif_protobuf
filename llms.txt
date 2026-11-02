@@ -1,0 +1,37 @@
+# enif_protobuf
+
+> enif_protobuf is a Google Protobuf (proto2/proto3) encoder and decoder for Erlang/OTP implemented
+> as a C NIF. It is a drop-in replacement for the `encode_msg/1` and `decode_msg/2` functions generated
+> by gpb: same record tuples, same wire format, byte-identical output, roughly 1.6–2.1x faster than
+> pure-Erlang gpb, with no libprotobuf or protoc dependency.
+
+Requirements: Erlang/OTP 28+ (CI: 28, 29), Linux/macOS, C compiler and `make`.
+
+## Docs
+
+- [README](README.md): install, quick start, full API reference, supported protobuf features, options, benchmark table, comparison with gpb and gpb NIF, FAQ.
+- [AGENTS.md](AGENTS.md): instructions and pitfalls for AI coding agents using or modifying the library.
+- [benchmarks/README.md](benchmarks/README.md): how to reproduce the throughput numbers, gpb/gpb-NIF comparison targets, maps and `d.proto` suites.
+
+## API
+
+- `enif_protobuf:load_cache(Module:get_msg_defs())` -> `ok`; loads/replaces the global schema cache.
+- `enif_protobuf:purge_cache()` -> `ok`; clears the schema.
+- `enif_protobuf:set_opts([{string_as_list, boolean()} | {with_utf8, boolean()}])` -> `ok`; must be called before `load_cache/1`.
+- `enif_protobuf:encode(MsgRecordOrMapTuple)` -> `binary()`; raises `cache_not_exists` if no schema is loaded.
+- `enif_protobuf:decode(Binary, 'MessageName')` -> record/map tuple; raises `unknown_msg` for names missing from the schema.
+- `enif_protobuf:encode_msg(Msg, Defs)` / `enif_protobuf:decode_msg(Bin, Name, Defs)`: load the cache on each call.
+- `enif_protobuf:debug_term(Term)`: prints the internal schema term layout.
+
+## Key facts
+
+- Supports all scalar types, enums (aliases, negative values), repeated/packed fields, nested messages, oneof, map, group, and unknown-field passthrough.
+- `string` fields decode to binaries by default; `{string_as_list, true}` switches to lists. Non-Latin-1 UTF-8 requires `{with_utf8, true}` before `load_cache/1`.
+- The schema cache is global to the BEAM node and shared by all processes; encode/decode take a read lock and are concurrency-safe.
+- Calls run on normal schedulers (no dirty NIF); use it for normal message sizes and shard very large payloads.
+- Not published on Hex; add it as a git dependency (see README).
+
+## Optional
+
+- [test/ep_gpb_tests.erl](test/ep_gpb_tests.erl): byte-parity tests against gpb, useful as executable usage examples.
+- [c_src/](c_src/): implementation; `src/enif_protobuf.erl` holds the public API stubs.

@@ -101,6 +101,9 @@ ifeq ($(OS),Windows_NT)
 	done
 endif
 
+# Rebuild objects when headers change; struct layouts live there.
+$(OBJECTS): $(wildcard $(C_SRC_DIR)/*.h)
+
 $(BUILD)/%.o: $(C_SRC_DIR)/%.c | $(BUILD)
 	$(COMPILE_C) -o $@ $<
 

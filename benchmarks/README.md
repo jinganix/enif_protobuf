@@ -80,14 +80,14 @@ Each case runs serialize and deserialize for ~30 seconds (configurable via `BENC
 ## Results
 
 <!-- BENCHMARK_RESULTS_START -->
-Last run: 2026-05-28 12:28:41 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
+Last run: 2026-11-02 16:09:07 UTC (standard Google benchmark messages; Erlang 29.0.1 per `.tool-versions`; machine Apple M4 Pro)
 
 | Test case | epb | gpb | gpb nif |
 |-----------|-----|-----|---------|
-| Small msgs · serialize | 314.54 | 171.77 | 67.63 |
-| Small msgs · deserialize | 573.06 | 300.92 | 92.97 |
-| Large msgs · serialize | 313.59 | 148.20 | 105.56 |
-| Large msgs · deserialize | 443.93 | 282.71 | 202.56 |
+| Small msgs · serialize | 286.91 | 157.14 | 56.79 |
+| Small msgs · deserialize | 716.65 | 272.49 | 76.29 |
+| Large msgs · serialize | 299.14 | 135.76 | 103.76 |
+| Large msgs · deserialize | 516.21 | 255.91 | 196.61 |
 
 Higher is better. Throughput in MB/s on serialized wire size.
 
@@ -96,8 +96,9 @@ Higher is better. Throughput in MB/s on serialized wire size.
 
 ```
 tool-versions erlang: 29.0.1
+erl: /Users/jingan/.asdf/installs/erlang/29.0.1/bin/erl
 System
-Darwin 25.5.0 Darwin Kernel Version 25.5.0: Mon Apr 27 20:41:15 PDT 2026; root:xnu-12377.121.6~2/RELEASE_ARM64_T6041 arm64
+Darwin 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:05:48 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6041 arm64
 CPU info
 Apple M4 Pro
 physical cpus  : 14
@@ -114,30 +115,30 @@ Erlang/OTP 29 [erts-17.0.1] [source] [64-bit] [smp:14:14] [ds:14:14:10] [async-t
 ```
 === gpb ===
 Benchmarking gpb msg_r (Message1) with file google_message1.dat
-Serialize to binary: 23795246 iterations in 30.121s; 171.77MB/s
-Deserialize from binary: 41744282 iterations in 30.163s; 300.92MB/s
+Serialize to binary: 21025345 iterations in 29.093s; 157.14MB/s
+Deserialize from binary: 38342080 iterations in 30.596s; 272.49MB/s
 
 Benchmarking gpb msg_r (Message2) with file google_message2.dat
-Serialize to binary: 52259 iterations in 28.445s; 148.20MB/s
-Deserialize from binary: 81486 iterations in 23.250s; 282.71MB/s
+Serialize to binary: 51724 iterations in 30.733s; 135.76MB/s
+Deserialize from binary: 76002 iterations in 23.956s; 255.91MB/s
 
 === gpb nif ===
 Benchmarking gpb msg (Message1) with file google_message1.dat
-Serialize to binary: 9601190 iterations in 30.867s; 67.63MB/s
-Deserialize from binary: 14943686 iterations in 34.952s; 92.97MB/s
+Serialize to binary: 7761921 iterations in 29.717s; 56.79MB/s
+Deserialize from binary: 10498134 iterations in 29.920s; 76.29MB/s
 
 Benchmarking gpb msg (Message2) with file google_message2.dat
-Serialize to binary: 39562 iterations in 30.231s; 105.56MB/s
-Deserialize from binary: 77044 iterations in 30.681s; 202.56MB/s
+Serialize to binary: 37157 iterations in 28.887s; 103.76MB/s
+Deserialize from binary: 75670 iterations in 31.046s; 196.61MB/s
 
 === enif_protobuf ===
 Benchmarking enif_protobuf msg_r (Message1) with file google_message1.dat
-Serialize to binary: 43363214 iterations in 29.976s; 314.54MB/s
-Deserialize from binary: 79128903 iterations in 30.024s; 573.06MB/s
+Serialize to binary: 40812520 iterations in 30.931s; 286.91MB/s
+Deserialize from binary: 99976895 iterations in 30.334s; 716.65MB/s
 
 Benchmarking enif_protobuf msg_r (Message2) with file google_message2.dat
-Serialize to binary: 117020 iterations in 30.102s; 313.59MB/s
-Deserialize from binary: 162919 iterations in 29.604s; 443.93MB/s
+Serialize to binary: 109803 iterations in 29.609s; 299.14MB/s
+Deserialize from binary: 192489 iterations in 30.080s; 516.21MB/s
 ```
 </details>
 <!-- BENCHMARK_RESULTS_END -->

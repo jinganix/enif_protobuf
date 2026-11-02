@@ -3,6 +3,10 @@
 
 #include "enif_protobuf.h"
 
+/* Dense field-number lookup table for the decoder. Above this many field
+ * numbers per message the memory cost is not worth it and bsearch stays. */
+#define EP_FNUM_MAP_LIMIT 512
+
 struct ep_enum_field_s {
     ERL_NIF_TERM name;
     int32_t value;
@@ -15,7 +19,6 @@ struct ep_field_s {
     field_type_e type;
     ep_node_t *sub_node;
     ERL_NIF_TERM sub_name;
-    ERL_NIF_TERM defaut_value;
     uint32_t id;
     uint32_t fnum;
     uint32_t rnum;
@@ -38,6 +41,8 @@ struct ep_node_s {
     uint32_t v_size;
     void *fields;
     void *v_fields;
+    ep_field_t **fnum_map; /* indexed by fnum, or NULL when not dense enough */
+    uint32_t fnum_map_size;
 };
 
 struct ep_node_id_s {
@@ -59,7 +64,7 @@ parse_node(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t **node, uint32_t proto_v
 ERL_NIF_TERM
 prelink_nodes(ErlNifEnv *env, ep_cache_t *cache);
 
-void
+ERL_NIF_TERM
 stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache);
 
 ERL_NIF_TERM

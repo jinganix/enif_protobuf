@@ -367,6 +367,266 @@ test_decode_collect_unknown_fields_manual_node(void)
     return 0;
 }
 
+static int
+test_decode_deep_nested_groups_fail(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    static unsigned char wire[40000];
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+
+    /* 0x13: field 2, wire type 3 (start group), never closed. Group skipping
+     * is recursive, so the nesting depth must be capped instead of blowing up
+     * the C stack. */
+    memset(wire, 0x13, sizeof(wire));
+    TEST_ASSERT(ep_test_load_single_field(env, "dg", "f", 1, st->atom_int32, st->atom_optional, NULL, 0) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "dg", wire, sizeof(wire)) == RET_ERROR);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
+static int
+test_decode_group_tag_on_scalar_field_skips(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    int arity;
+    const ERL_NIF_TERM *elems;
+    ep_tdata_t *tdata;
+    unsigned char wire[] = {0x0b, 0x0c}; /* start/end group for field 1 */
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+    TEST_ASSERT(ep_test_load_single_field(env, "gs", "f", 1, st->atom_int32, st->atom_optional, NULL, 0) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "gs", wire, sizeof(wire)) == RET_OK);
+
+    tdata = ep_get_tdata(st);
+    TEST_ASSERT(enif_get_tuple(env, tdata->dec.result, &arity, &elems));
+    TEST_ASSERT_EQ(arity, 2);
+    TEST_ASSERT(elems[1] == st->atom_undefined);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
+static int
+test_decode_tag_overflowing_32bits_fails(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    /* tag for field number 2^32, wire type 0: does not fit in 32 bits */
+    unsigned char wire[] = {0x80, 0x80, 0x80, 0x80, 0x80, 0x01, 0x01};
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+    TEST_ASSERT(ep_test_load_single_field(env, "ot", "f", 1, st->atom_int32, st->atom_optional, NULL, 0) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "ot", wire, sizeof(wire)) == RET_ERROR);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
+static int
+test_decode_repeated_msg_wrong_wire_type_fails(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    ERL_NIF_TERM extra[1];
+    /* field 1, wire type varint (0x08): for a repeated message field this is a
+     * wire type mismatch. The varint 2 is not a payload length; the two bytes
+     * that follow happen to be a valid "inner" message ({0x08 0x07}), so a
+     * decoder that treats them as length-delimited silently accepts garbage. */
+    unsigned char wire[] = {0x08, 0x02, 0x08, 0x07};
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+
+    extra[0] = ep_test_mk_msg_def(env, "inner",
+                                  enif_make_list(env, 1,
+                                                 ep_test_mk_field(env, st, "x", 1, 1, st->atom_int32, st->atom_optional)));
+    TEST_ASSERT(ep_test_load_single_field(env, "outer", "r", 1,
+                                          enif_make_tuple2(env, st->atom_msg, enif_make_atom(env, "inner")),
+                                          st->atom_repeated, extra, 1) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "outer", wire, sizeof(wire)) == RET_ERROR);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
+static int
+test_decode_deep_recursive_message(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    unsigned char wire[8192];
+    size_t depth = 400, i, n = 0;
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+    TEST_ASSERT(ep_test_load_single_field(env, "rec", "a", 1,
+                                          enif_make_tuple2(env, st->atom_msg, enif_make_atom(env, "rec")),
+                                          st->atom_optional, NULL, 0) == RET_OK);
+
+    /* Build inner-out: each level is tag(0x0a) + length + payload. */
+    for (i = 0; i < depth; i++) {
+        size_t old_n = n, j;
+        unsigned char len[2];
+        size_t len_n;
+
+        if (n < 2) {
+            len_n = 1;
+            len[0] = (unsigned char)n;
+        } else {
+            len[0] = (unsigned char)(0x80 | (n & 0x7f));
+            len[1] = (unsigned char)(n >> 7);
+            len_n = 2;
+        }
+        /* shift the existing payload up by tag+length */
+        for (j = old_n; j > 0; j--) {
+            wire[j + 1 + len_n - 1] = wire[j - 1];
+        }
+        wire[0] = 0x0a;
+        memcpy(wire + 1, len, len_n);
+        n = old_n + 1 + len_n;
+    }
+
+    TEST_ASSERT(ep_test_decode_wire(env, "rec", wire, n) == RET_OK);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+static int
+test_decode_bool_accepts_any_non_zero_varint(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    int arity;
+    const ERL_NIF_TERM *elems;
+    ep_tdata_t *tdata;
+    unsigned char wire_false[] = {0x08, 0x00};
+    unsigned char wire_two[] = {0x08, 0x02};             /* non-zero -> true (gpb) */
+    unsigned char wire_multibyte[] = {0x08, 0x80, 0x01}; /* varint 128 -> true */
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+    TEST_ASSERT(ep_test_load_single_field(env, "b", "f", 1, st->atom_bool, st->atom_optional, NULL, 0) == RET_OK);
+
+    TEST_ASSERT(ep_test_decode_wire(env, "b", wire_false, sizeof(wire_false)) == RET_OK);
+    tdata = ep_get_tdata(st);
+    TEST_ASSERT(enif_get_tuple(env, tdata->dec.result, &arity, &elems));
+    TEST_ASSERT_EQ(arity, 2);
+    TEST_ASSERT(elems[1] == st->atom_false);
+
+    TEST_ASSERT(ep_test_decode_wire(env, "b", wire_two, sizeof(wire_two)) == RET_OK);
+    TEST_ASSERT(enif_get_tuple(env, tdata->dec.result, &arity, &elems));
+    TEST_ASSERT(elems[1] == st->atom_true);
+
+    TEST_ASSERT(ep_test_decode_wire(env, "b", wire_multibyte, sizeof(wire_multibyte)) == RET_OK);
+    TEST_ASSERT(enif_get_tuple(env, tdata->dec.result, &arity, &elems));
+    TEST_ASSERT(elems[1] == st->atom_true);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+static int
+test_decode_sint32_masks_to_32_bits(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    int arity;
+    const ERL_NIF_TERM *elems;
+    ep_tdata_t *tdata;
+    /* zigzag value 2^32+1 must be masked to 32 bits first (-> 1 -> -1), as gpb
+     * does, instead of being clamped to INT32_MIN. */
+    unsigned char wire[] = {0x08, 0x81, 0x80, 0x80, 0x80, 0x10};
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+    TEST_ASSERT(ep_test_load_single_field(env, "s32", "f", 1, st->atom_sint32, st->atom_optional, NULL, 0) == RET_OK);
+    TEST_ASSERT(ep_test_decode_wire(env, "s32", wire, sizeof(wire)) == RET_OK);
+
+    tdata = ep_get_tdata(st);
+    TEST_ASSERT(enif_get_tuple(env, tdata->dec.result, &arity, &elems));
+    TEST_ASSERT_EQ(arity, 2);
+    {
+        int value = 0;
+        TEST_ASSERT(enif_get_int(env, elems[1], &value));
+        TEST_ASSERT_EQ(value, -1);
+    }
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
+/* Oneof message fields keep the parent spot pointer across stack_ensure, which
+ * may realloc the spot array. A recursive oneof forces that growth. */
+static int
+test_decode_deep_recursive_oneof(void)
+{
+    ErlNifEnv *env = ep_test_env_create();
+    ep_state_t *st;
+    ERL_NIF_TERM oneof_fields[1], cache, ret;
+    unsigned char wire[8192];
+    size_t depth = 400, i, n = 0;
+
+    TEST_ASSERT(env != NULL);
+    TEST_ASSERT(ep_test_init_state(env, 1) == RET_OK);
+    st = (ep_state_t *)enif_priv_data(env);
+
+    oneof_fields[0] = ep_test_mk_field(env, st, "a", 1, 1,
+                                       enif_make_tuple2(env, st->atom_msg, enif_make_atom(env, "ro")),
+                                       st->atom_optional);
+    cache = enif_make_list(env, 1,
+                           ep_test_mk_msg_def(env, "ro",
+                                              enif_make_list(env, 1,
+                                                             enif_make_tuple4(env, make_atom(env, "gpb_oneof"),
+                                                                              enif_make_atom(env, "u"), enif_make_uint(env, 1),
+                                                                              enif_make_list(env, 1, oneof_fields[0])))));
+    if (setjmp(ep_test_exception_jmp) == 0) {
+        ep_test_exception_active = 0;
+        ret = ep_load_cache(env, cache);
+        TEST_ASSERT(ret == st->atom_ok);
+    } else {
+        TEST_ASSERT(0);
+    }
+
+    for (i = 0; i < depth; i++) {
+        size_t old_n = n, j;
+        unsigned char len[2];
+        size_t len_n;
+
+        if (n < 2) {
+            len_n = 1;
+            len[0] = (unsigned char)n;
+        } else {
+            len[0] = (unsigned char)(0x80 | (n & 0x7f));
+            len[1] = (unsigned char)(n >> 7);
+            len_n = 2;
+        }
+        for (j = old_n; j > 0; j--) {
+            wire[j + 1 + len_n - 1] = wire[j - 1];
+        }
+        wire[0] = 0x0a;
+        memcpy(wire + 1, len, len_n);
+        n = old_n + 1 + len_n;
+    }
+
+    TEST_ASSERT(ep_test_decode_wire(env, "ro", wire, n) == RET_OK);
+
+    ep_test_env_destroy(env);
+    return 0;
+}
+
 int
 run_test_ep_decoder(void)
 {
@@ -374,10 +634,18 @@ run_test_ep_decoder(void)
     TEST_RUN(test_unpack_truncated_varint);
     TEST_RUN(test_decode_int32_field);
     TEST_RUN(test_decode_nested_truncated_payload);
+    TEST_RUN(test_decode_deep_nested_groups_fail);
+    TEST_RUN(test_decode_group_tag_on_scalar_field_skips);
+    TEST_RUN(test_decode_tag_overflowing_32bits_fails);
     TEST_RUN(test_unpack_additional_scalars);
     TEST_RUN(test_unpack_failure_paths);
     TEST_RUN(test_decode_packed_more_types);
     TEST_RUN(test_decode_wrong_wire_type_skips);
     TEST_RUN(test_decode_collect_unknown_fields_manual_node);
+    TEST_RUN(test_decode_repeated_msg_wrong_wire_type_fails);
+    TEST_RUN(test_decode_deep_recursive_message);
+    TEST_RUN(test_decode_bool_accepts_any_non_zero_varint);
+    TEST_RUN(test_decode_sint32_masks_to_32_bits);
+    TEST_RUN(test_decode_deep_recursive_oneof);
     return 0;
 }

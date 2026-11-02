@@ -78,7 +78,15 @@
         return enif_make_tuple2(env, ((ep_state_t *)enif_priv_data(env))->atom_error, term); \
     } while (0)
 #else
-#define raise_exception(env, term) return enif_raise_exception(env, term)
+/* enif_raise_exception() returns THE_NON_VALUE (0), which equals RET_OK, so the
+ * plain macro made check_ret() treat a raised exception as success and continue
+ * with uninitialized state. Always report a failure status; the pending
+ * exception is what Erlang sees, the returned term is ignored by the emulator. */
+#define raise_exception(env, term)       \
+    do {                                 \
+        enif_raise_exception(env, term); \
+        return RET_ERROR;                \
+    } while (0)
 
 #define return_error(env, term) return enif_make_tuple2(env, ((ep_state_t *)enif_priv_data(env))->atom_error, term)
 #endif
@@ -132,6 +140,32 @@ typedef enum {
     field_oneof = 19,
     field_group = 20
 } field_type_e;
+
+/* Types that may use the packed encoding; gpb ignores a packed option on
+ * anything else (it only warns at compile time) and so do we. */
+static inline int
+ep_type_is_packable(field_type_e type)
+{
+    switch (type) {
+    case field_int32:
+    case field_int64:
+    case field_uint32:
+    case field_uint64:
+    case field_sint32:
+    case field_sint64:
+    case field_fixed32:
+    case field_fixed64:
+    case field_sfixed32:
+    case field_sfixed64:
+    case field_bool:
+    case field_float:
+    case field_double:
+    case field_enum:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
 
 typedef enum {
     occurrence_required = 0,
