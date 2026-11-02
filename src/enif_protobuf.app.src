@@ -2,7 +2,7 @@
     {description,
         "Fast Google Protobuf (proto2/proto3) encoder and decoder for Erlang/OTP, implemented as a C "
         "NIF. Drop-in replacement for gpb encode_msg/1 and decode_msg/2."},
-    {vsn, "1.0.0"},
+    {vsn, "1.0.1"},
     {registered, []},
     {applications, [kernel, stdlib]},
     {maintainers, ["gan.jin <jinganix@gmail.com>"]},
