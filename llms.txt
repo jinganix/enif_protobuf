@@ -7,7 +7,8 @@
 
 Facts: published on Hex as `enif_protobuf`, docs at <https://hexdocs.pm/enif_protobuf/>, source at
 <https://github.com/jinganix/enif_protobuf>, license Apache-2.0. The package version is `{vsn, ...}` in
-`src/enif_protobuf.app.src` and is published by `make release` (`rebar3 hex publish`).
+`src/enif_protobuf.app.src`; publishing happens in CI (`.github/workflows/release.yml`, triggered by a
+`v*` tag or `workflow_dispatch`) or locally with `make release`.
 Requirements: Erlang/OTP 28+ (CI: 28, 29), Linux/macOS, C compiler and `make`.
 
 ## Install
@@ -56,3 +57,4 @@ From Elixir the same calls are `:enif_protobuf.encode/1`, `:enif_protobuf.decode
 
 - [test/ep_gpb_tests.erl](test/ep_gpb_tests.erl): byte-parity tests against gpb, useful as executable usage examples.
 - [c_src/](c_src/): implementation; `src/enif_protobuf.erl` holds the public API stubs.
+- [.github/workflows/release.yml](.github/workflows/release.yml): publishes to Hex on a `v*` tag (needs the `HEX_API_KEY` repo secret).

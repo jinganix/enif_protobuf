@@ -341,22 +341,31 @@ exception or a bad term handled in the NIF kills the whole VM.
 
 ### Releasing
 
-Publishing is manual, the way [jiffy](https://github.com/davisp/jiffy) does it: bump `{vsn, ...}` in
-[`src/enif_protobuf.app.src`](src/enif_protobuf.app.src), commit, then run `make release`
-(`rebar3 hex publish`). That uploads the source package and the edoc docs to
+Two ways, same result: the source package plus edoc docs land on
 [hex.pm/packages/enif_protobuf](https://hex.pm/packages/enif_protobuf) and
-[hexdocs.pm/enif_protobuf](https://hexdocs.pm/enif_protobuf/). Then tag and announce:
+[hexdocs.pm/enif_protobuf](https://hexdocs.pm/enif_protobuf/).
+
+**From CI (preferred).** Bump `{vsn, ...}` in [`src/enif_protobuf.app.src`](src/enif_protobuf.app.src),
+commit, then push a matching tag. [`.github/workflows/release.yml`](.github/workflows/release.yml) runs
+the tests, publishes to Hex and creates the GitHub release. It refuses to publish when the tag and
+the `.app.src` version disagree (`v1.0.0` must be `{vsn, "1.0.0"}`). `workflow_dispatch` publishes the
+current `master` without tagging.
 
 ```shell
-rebar3 hex user auth                          # once; stores the API key under ~/.config/rebar3/hex/
-make release                                  # publishes the {vsn, ...} from app.src
-./rebar3 hex build                            # optional pre-flight; tarball in _build/default/lib/enif_protobuf/hex/
-git tag v1.0.0 && git push origin v1.0.0
-gh release create v1.0.0 --generate-notes
+gh secret set HEX_API_KEY                    # once: key from https://hex.pm/dashboard/keys
+git tag v1.0.1 && git push origin v1.0.1     # releases are cut by pushing a tag
 ```
 
-The package contains sources only (`{files, ...}` in the `.app.src`): users compile the NIF with
-their own C toolchain, so there are no per-platform binaries to publish.
+**From your machine**, the way [jiffy](https://github.com/davisp/jiffy) does it:
+
+```shell
+rebar3 hex user auth       # once; stores the API key under ~/.config/rebar3/hex/
+make release               # = rebar3 hex publish, uses the {vsn, ...} from app.src
+```
+
+Either way the package contains sources only (`{files, ...}` in the `.app.src`): users compile the NIF
+with their own C toolchain, so there are no per-platform binaries to publish. Check the tarball
+before publishing with `./rebar3 hex build` (output in `_build/default/lib/enif_protobuf/hex/`).
 
 ## License
 

@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish to Hex
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: erlef/setup-beam@v1.24.0
+        with:
+          otp-version: '29'
+          version-type: loose
+      # Never publish a version that disagrees with its tag: releases cannot be undone.
+      - name: Check tag matches app.src version
+        if: github.ref_type == 'tag'
+        run: |
+          vsn=$(grep -oE '\{vsn, "[^"]+"' src/enif_protobuf.app.src | cut -d'"' -f2)
+          test "v$vsn" = "$GITHUB_REF_NAME" || {
+            echo "tag $GITHUB_REF_NAME does not match app.src vsn $vsn"; exit 1; }
+      - name: Test before publishing
+        run: |
+          make
+          make tests
+      - name: Publish to Hex
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: ./rebar3 hex publish --yes
+      - name: Create GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --generate-notes --title "$GITHUB_REF_NAME"
