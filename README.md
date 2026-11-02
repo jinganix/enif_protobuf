@@ -1,6 +1,10 @@
 [![CI](https://github.com/jinganix/enif_protobuf/actions/workflows/ci.yml/badge.svg)](https://github.com/jinganix/enif_protobuf/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/enif_protobuf.svg)](https://hex.pm/packages/enif_protobuf)
+[![Hex Downloads](https://img.shields.io/hexpm/dt/enif_protobuf.svg)](https://hex.pm/packages/enif_protobuf)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Erlang/OTP](https://img.shields.io/badge/Erlang%2FOTP-28%2B-blue.svg)](https://www.erlang.org/)
 
-# enif_protobuf — fast Google Protobuf encoder/decoder for Erlang (NIF)
+# enif_protobuf — fast Google Protobuf encoder/decoder for Erlang and Elixir (NIF)
 
 **enif_protobuf** is a Google Protobuf encoder and decoder for **Erlang/OTP**, implemented as a NIF
 in C. It is a drop-in replacement for the `encode_msg/1` and `decode_msg/2` functions that
@@ -10,7 +14,7 @@ libprotobuf dependency.
 
 Use gpb's `protoc-erl` to generate the Erlang modules as usual, load the schema once with
 `enif_protobuf:load_cache(Module:get_msg_defs())`, then call `enif_protobuf:encode/1` and
-`enif_protobuf:decode/2`.
+`enif_protobuf:decode/2`. The same calls work from Elixir, since the API is plain Erlang.
 
 ## Contents
 
@@ -46,12 +50,21 @@ Use gpb's `protoc-erl` to generate the Erlang modules as usual, load the schema 
 | Input/output | gpb record tuples (and gpb `-maps` generated modules) |
 | Wire compatibility | Google Protobuf, proto2 + proto3 |
 | Requires | Erlang/OTP 28+ (CI matrix: 28, 29), a C compiler, `make` |
+| Package | Hex: [`enif_protobuf`](https://hex.pm/packages/enif_protobuf), license Apache-2.0 |
 | Platforms | Linux, macOS (Windows via `make` is untested in CI) |
 | Schema loading | `enif_protobuf:load_cache/1`, one global cache per node |
 
 ## Installation
 
-Add it as a git dependency in `rebar.config` (the package is not on Hex):
+Add it from [Hex](https://hex.pm/packages/enif_protobuf) in `rebar.config`:
+
+```erlang
+{deps, [
+    {enif_protobuf, "~> 1.0"}
+]}.
+```
+
+Or track `master` directly:
 
 ```erlang
 {deps, [
@@ -60,8 +73,9 @@ Add it as a git dependency in `rebar.config` (the package is not on Hex):
 ```
 
 The NIF is compiled by a `pre_hooks` entry during `rebar3 compile`, so a working C toolchain
-(`cc`/`clang`, `make`) is required on the build machine. Erlang/OTP 28 or newer is required; the CI
-matrix covers OTP 28 and 29 on Linux and macOS.
+(`cc`/`clang`, `make`) is required on the build machine (the Hex package ships sources, not a
+prebuilt `.so`). Erlang/OTP 28 or newer is required; the CI matrix covers OTP 28 and 29 on Linux and
+macOS. API docs are published at [hexdocs.pm/enif_protobuf](https://hexdocs.pm/enif_protobuf/).
 
 ## Build
 
@@ -246,48 +260,66 @@ Example prompt that works well:
 
 ## FAQ
 
-**Is enif_protobuf faster than gpb?**
+### Is enif_protobuf faster than gpb?
+
 Yes, in this repo's benchmarks it is ~1.8–2.6× faster than pure-Erlang gpb and several times faster
 than gpb's libprotobuf NIF. Numbers and hardware are in the [benchmark table](#performance); rerun
 `make benchmark-update-readme` on your own machine before relying on them.
 
-**Do I need to regenerate my `.proto` files or change my records?**
+### Do I need to regenerate my `.proto` files or change my records?
+
 No. Keep gpb's `protoc-erl` output and record definitions; only the encode/decode calls change.
 
-**Does it produce the same bytes as gpb?**
+### Does it produce the same bytes as gpb?
+
 Yes for the messages covered by the test suite (the tests assert `gpb_bin =:= epb_bin`). Both follow
 the protobuf wire format, so any conforming decoder reads either.
 
-**Why does `encode/1` or `decode/2` raise `cache_not_exists`?**
+### Can I use it from Elixir?
+
+Yes. It is an Erlang library with no non-Erlang API: add it to `mix.exs` as a dependency
+(`{:enif_protobuf, "~> 1.0"}`) and call `:enif_protobuf.decode(bin, :'Person')` instead of
+`enif_protobuf:decode(Bin, 'Person')`. Generate the schema module with gpb's `protoc-erl` (or
+`protoc-gen-elixir`) and load it once with `:enif_protobuf.load_cache(X.get_msg_defs())`.
+
+### Why does `encode/1` or `decode/2` raise `cache_not_exists`?
+
 No schema is loaded yet (or `purge_cache/0` was called). Call `enif_protobuf:load_cache/1` first, or
 use `encode_msg/2` / `decode_msg/3`.
 
-**Why do I get `badarg` from `set_opts/1`?**
+### Why do I get `badarg` from `set_opts/1`?
+
 Only `{string_as_list, boolean()}` and `{with_utf8, boolean()}` are accepted, and the argument must be
 a proper list of such tuples.
 
-**How do I encode non-ASCII (UTF-8) strings?**
+### How do I encode non-ASCII (UTF-8) strings?
+
 `enif_protobuf:set_opts([{with_utf8, true}])` before `load_cache/1`. Without it, encoding raises on
 code points outside Latin-1.
 
-**Are strings returned as binaries or lists?**
+### Are strings returned as binaries or lists?
+
 Binaries by default. Set `{string_as_list, true}` for lists.
 
-**Can several processes or applications use it at once?**
+### Can several processes or applications use it at once?
+
 Encoding and decoding are safe from any number of processes. The schema cache is global to the node,
 so two applications with different `.proto` schemas must not share one VM — give each its own node, or
 coordinate the single `load_cache/1` call.
 
-**Does it run on dirty schedulers?**
+### Does it run on dirty schedulers?
+
 No; calls execute on normal schedulers and hold a NIF read lock for the duration of the call. Keep
 individual messages reasonably sized, or shard very large payload work across pools.
 
-**Why does memory stay high after encoding one huge message?**
+### Why does memory stay high after encoding one huge message?
+
 The per-scheduler encode buffer grows geometrically to fit the largest message encoded and is not
 shrunk afterwards; it is released when the NIF is unloaded (VM exit). This is a deliberate trade-off
 for the fast path.
 
-**Windows?**
+### Does it work on Windows?
+
 `rebar.config` has a `win32` make hook, but CI only covers Linux and macOS.
 
 ## Development
@@ -306,3 +338,26 @@ points, schema parsing, cache), `c_src/ep_encoder.c` / `c_src/ep_decoder.c` (wir
 
 See [`AGENTS.md`](AGENTS.md) for the invariants that must hold in this codebase — an uncaught C
 exception or a bad term handled in the NIF kills the whole VM.
+
+### Releasing
+
+Publishing is manual, the way [jiffy](https://github.com/davisp/jiffy) does it: bump `{vsn, ...}` in
+[`src/enif_protobuf.app.src`](src/enif_protobuf.app.src), commit, then run `make release`
+(`rebar3 hex publish`). That uploads the source package and the edoc docs to
+[hex.pm/packages/enif_protobuf](https://hex.pm/packages/enif_protobuf) and
+[hexdocs.pm/enif_protobuf](https://hexdocs.pm/enif_protobuf/). Then tag and announce:
+
+```shell
+rebar3 hex user auth                          # once; stores the API key under ~/.config/rebar3/hex/
+make release                                  # publishes the {vsn, ...} from app.src
+./rebar3 hex build                            # optional pre-flight; tarball in _build/default/lib/enif_protobuf/hex/
+git tag v1.0.0 && git push origin v1.0.0
+gh release create v1.0.0 --generate-notes
+```
+
+The package contains sources only (`{files, ...}` in the `.app.src`): users compile the NIF with
+their own C toolchain, so there are no per-platform binaries to publish.
+
+## License
+
+[Apache-2.0](LICENSE).

@@ -27,3 +27,4 @@ proper/
 rebar.lock
 rebar3
 rebar3.crashdump
+doc/

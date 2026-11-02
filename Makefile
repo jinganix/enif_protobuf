@@ -2,7 +2,7 @@ REBAR := $(shell which rebar3 2>/dev/null || echo ./rebar3)
 REBAR_URL := https://s3.amazonaws.com/rebar3/rebar3
 
 .PHONY: clean compile tests c-tests c-coverage c-coverage-check \
-	c-format c-format-check \
+	c-format c-format-check release \
 	benchmark benchmark-quick benchmark-update-readme
 
 all: compile
@@ -27,6 +27,9 @@ c-format:
 
 c-format-check:
 	./scripts/c_format.sh check
+
+release:
+	$(REBAR) hex publish
 
 clean: $(REBAR)
 	$(REBAR) clean

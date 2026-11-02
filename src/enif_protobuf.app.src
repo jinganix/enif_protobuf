@@ -2,7 +2,26 @@
     {description,
         "Fast Google Protobuf (proto2/proto3) encoder and decoder for Erlang/OTP, implemented as a C "
         "NIF. Drop-in replacement for gpb encode_msg/1 and decode_msg/2."},
-    {vsn, "git"},
+    {vsn, "1.0.0"},
     {registered, []},
-    {applications, [kernel, stdlib]}
+    {applications, [kernel, stdlib]},
+    {maintainers, ["gan.jin <jinganix@gmail.com>"]},
+    {licenses, ["Apache-2.0"]},
+    {links, [
+        {"GitHub", "https://github.com/jinganix/enif_protobuf"},
+        {"Hex", "https://hex.pm/packages/enif_protobuf"}
+    ]},
+    {files, [
+        "LICENSE",
+        "Makefile",
+        "README.md",
+        "rebar.config",
+        "rebar.lock",
+        "c_src/Makefile",
+        "c_src/*.c",
+        "c_src/*.h",
+        "priv/.gitignore",
+        "src/*.app.src",
+        "src/*.erl"
+    ]}
 ]}.

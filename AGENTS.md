@@ -17,6 +17,7 @@ make tests              # EUnit (gpb parity, PropEr round-trips, per-issue regre
 make c-tests            # C unit tests
 make c-coverage-check   # gcovr coverage gate
 make c-format           # clang-format >= 19 on c_src/ and c_src_tests/
+make release            # rebar3 hex publish (bump {vsn, ...} in src/enif_protobuf.app.src first)
 make benchmark-update-readme   # regenerate benchmark tables in README.md
 ```
 
