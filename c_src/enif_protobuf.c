@@ -88,7 +88,7 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
     uint32_t i, len = 0, proto_v = 2, max_fields = 2;
     ERL_NIF_TERM term, head, tail, ret, proto3_list = 0;
-    ERL_NIF_TERM *array;
+    ERL_NIF_TERM *array, *t_arr;
 
     term = list;
     while (enif_get_list_cell(env, term, &head, &tail)) {
@@ -188,16 +188,25 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
      */
     enif_rwlock_rwlock(state->cache_lock);
 
-    stack_ensure_all(env, cache);
+    if ((ret = stack_ensure_all(env, cache)) != RET_OK) {
+        enif_rwlock_rwunlock(state->cache_lock);
+        ep_cache_destroy(&cache);
+        return ret;
+    }
+
     for (i = 0; i < state->lock_n; i++) {
         stack = &(state->tdata[i].stack);
         spot = stack->spots;
         while (spot < stack->end) {
-            spot->t_size = max_fields + 1;
-            if (spot->t_arr == NULL) {
-                spot->t_arr = _calloc(sizeof(ERL_NIF_TERM), spot->t_size);
-            } else {
-                spot->t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * spot->t_size);
+            if (spot->t_size < (size_t)max_fields + 1) {
+                t_arr = _realloc(spot->t_arr, sizeof(ERL_NIF_TERM) * ((size_t)max_fields + 1));
+                if (t_arr == NULL) {
+                    enif_rwlock_rwunlock(state->cache_lock);
+                    ep_cache_destroy(&cache);
+                    raise_exception(env, make_atom(env, "alloc"));
+                }
+                spot->t_arr = t_arr;
+                spot->t_size = (size_t)max_fields + 1;
             }
             spot++;
         }
@@ -221,7 +230,6 @@ ep_load_cache(ErlNifEnv *env, ERL_NIF_TERM list)
 static int
 load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
 {
-    ep_enc_t *enc;
     uint32_t lock_n, i;
     ep_stack_t *stack;
     ep_state_t *state;
@@ -256,11 +264,8 @@ load(ErlNifEnv *env, void **priv, ERL_NIF_TERM info)
                 return RET_ERROR;
             }
             stack->end = stack->spots + stack->size;
-
-            enc = &(state->tdata[i].enc);
-            enc->mem = _calloc(ENC_INIT_SIZE, 1);
-            enc->size = ENC_INIT_SIZE;
         }
+        /* enc->mem is allocated on first encode (see encode_1). */
 
 #define EP_MAKE_ATOM(env, state, name) (state)->atom_##name = make_atom(env, #name)
 
@@ -385,6 +390,13 @@ encode_1(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[])
     }
 
     tdata = ep_get_tdata(state);
+    if (tdata->enc.mem == NULL) {
+        tdata->enc.mem = _calloc(ENC_INIT_SIZE, 1);
+        if (tdata->enc.mem == NULL) {
+            raise_exception(env, make_atom(env, "alloc"));
+        }
+        tdata->enc.size = ENC_INIT_SIZE;
+    }
     enif_rwlock_rlock(state->cache_lock);
     tdata->enc.p = tdata->enc.mem;
     tdata->enc.end = tdata->enc.mem + tdata->enc.size;

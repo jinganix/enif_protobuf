@@ -8,8 +8,6 @@
     } while (0)
 #endif
 
-#define enc_ensure_default(env, enc) enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE)
-
 static inline ERL_NIF_TERM
 check_proper_list_tail(ErlNifEnv *env, ERL_NIF_TERM tail)
 {
@@ -43,6 +41,16 @@ enc_ensure(ErlNifEnv *env, ep_enc_t *enc, size_t size)
 
     return enc;
 }
+
+/* enc_ensure returns NULL on allocation failure; callers must not write then. */
+#define enc_reserve(env, enc, size)                                   \
+    do {                                                              \
+        if (enc_ensure((env), (enc), (size)) == NULL) {               \
+            raise_exception((env), make_atom((env), "alloc_binary")); \
+        }                                                             \
+    } while (0)
+
+#define enc_ensure_default(env, enc) enc_reserve(env, enc, MAX_UINT64_ENCODED_SIZE)
 
 static inline void
 do_pack_uint32(ErlNifEnv *env, uint32_t val, ep_enc_t *enc)
@@ -105,14 +113,11 @@ pack_sint32(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 
     enc_ensure_default(env, enc);
 
-    if (val < 0) {
-        val = (-val) * 2 - 1;
-
-    } else {
-        val = val * 2;
+    {
+        /* zigzag without signed overflow for INT32_MIN */
+        uint32_t u = ((uint32_t)val) << 1;
+        do_pack_uint32(env, val < 0 ? ~u : u, enc);
     }
-
-    do_pack_uint32(env, val, enc);
 
     return RET_OK;
 }
@@ -138,7 +143,7 @@ pack_int32(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         *(enc->p)++ = (val >> 14) | 0x80;
         *(enc->p)++ = (val >> 21) | 0x80;
         *(enc->p)++ = (val >> 28) | 0x80;
-        *((int32_t *)(enc->p)) = 0xffffffff;
+        memset(enc->p, 0xff, sizeof(int32_t));
         enc->p += sizeof(int32_t);
         *(enc->p)++ = 0x01;
 
@@ -162,10 +167,9 @@ pack_fixed32(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field
         return RET_OK;
     }
 
-    enc_ensure(env, enc, sizeof(int32_t));
+    enc_reserve(env, enc, sizeof(int32_t));
 
-    //*((int32_t *) (enc->p)) = swap_int32(val);
-    *((int32_t *)(enc->p)) = val;
+    memcpy(enc->p, &val, sizeof(int32_t));
     enc->p += sizeof(int32_t);
 
     return RET_OK;
@@ -238,14 +242,11 @@ pack_sint64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 
     enc_ensure_default(env, enc);
 
-    if (val < 0) {
-        val = (-val) * 2 - 1;
-
-    } else {
-        val = val * 2;
+    {
+        /* zigzag without signed overflow for INT64_MIN */
+        uint64_t u = ((uint64_t)val) << 1;
+        do_pack_uint64(env, val < 0 ? ~u : u, enc);
     }
-
-    do_pack_uint64(env, val, enc);
 
     return RET_OK;
 }
@@ -283,10 +284,9 @@ pack_fixed64(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field
         return RET_OK;
     }
 
-    enc_ensure(env, enc, sizeof(int64_t));
+    enc_reserve(env, enc, sizeof(int64_t));
 
-    //*((int64_t *) (enc->p)) = swap_int64(val);
-    *((int64_t *)(enc->p)) = val;
+    memcpy(enc->p, &val, sizeof(int64_t));
     enc->p += sizeof(int64_t);
 
     return RET_OK;
@@ -312,7 +312,7 @@ pack_boolean(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field
         return RET_OK;
     }
 
-    enc_ensure(env, enc, sizeof(int8_t));
+    enc_reserve(env, enc, sizeof(int8_t));
 
     *(enc->p)++ = (int8_t)(val & 0x000000ff);
 
@@ -356,9 +356,9 @@ pack_float(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         return RET_OK;
     }
 
-    enc_ensure(env, enc, sizeof(int32_t));
+    enc_reserve(env, enc, sizeof(int32_t));
 
-    *((int32_t *)(enc->p)) = *((int32_t *)&val);
+    memcpy(enc->p, &val, sizeof(int32_t));
     enc->p += sizeof(int32_t);
 
     return RET_OK;
@@ -400,9 +400,9 @@ pack_double(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         return RET_OK;
     }
 
-    enc_ensure(env, enc, sizeof(int64_t));
+    enc_reserve(env, enc, sizeof(int64_t));
 
-    *((int64_t *)(enc->p)) = *((int64_t *)&val);
+    memcpy(enc->p, &val, sizeof(int64_t));
 
     enc->p += sizeof(int64_t);
 
@@ -463,12 +463,12 @@ pack_bytes(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
             return RET_OK;
         }
 
-        enc_ensure(env, enc, 1);
+        enc_reserve(env, enc, 1);
         *(enc->p++) = 0;
         return RET_OK;
     }
 
-    enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
+    enc_reserve(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
 
     do_pack_uint32(env, (uint32_t)bin.size, enc);
 
@@ -489,12 +489,12 @@ pack_string_list(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *f
             check_ret(ret, pack_string_list(env, head, enc, field));
         } else if (enif_is_binary(env, head) && enif_inspect_binary(env, head, &bin)) {
             if (bin.size > 0) {
-                enc_ensure(env, enc, bin.size);
+                enc_reserve(env, enc, bin.size);
                 memcpy(enc->p, bin.data, bin.size);
                 enc->p += bin.size;
             }
         } else {
-            enc_ensure(env, enc, 4);
+            enc_reserve(env, enc, 4);
             check_ret(ret, pack_utf8(env, head, enc, field));
         }
         term = tail;
@@ -507,7 +507,7 @@ pack_string_list(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *f
 static inline ERL_NIF_TERM
 pack_string(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 {
-    size_t payload_len;
+    size_t payload_len, length_at;
     uint8_t *p, *end;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
     ErlNifBinary bin;
@@ -523,16 +523,19 @@ pack_string(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
                 return RET_OK;
             }
 
-            enc_ensure(env, enc, 1);
+            enc_reserve(env, enc, 1);
             *(enc->p++) = 0;
             return RET_OK;
         }
 
-        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE);
+        enc_reserve(env, enc, MAX_UINT64_ENCODED_SIZE);
+        /* Keep the length slot as an offset: packing the list can grow (realloc)
+         * the buffer, which would leave a saved pointer dangling. */
+        length_at = (size_t)(enc->p - enc->mem);
         enc->p += MAX_UINT64_ENCODED_SIZE;
-        enc->tmp = enc->p;
 
         if (enif_inspect_iolist_as_binary(env, term, &bin)) {
+            enc_reserve(env, enc, bin.size * 2);
             p = bin.data;
             end = bin.data + bin.size;
             while (p < end) {
@@ -548,13 +551,13 @@ pack_string(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
             check_ret(ret, pack_string_list(env, term, enc, field));
         }
 
-        payload_len = enc->p - enc->tmp;
-        enc->p = enc->tmp - MAX_UINT64_ENCODED_SIZE;
+        payload_len = (size_t)(enc->p - (enc->mem + length_at + MAX_UINT64_ENCODED_SIZE));
+        enc->p = enc->mem + length_at;
         if (payload_len == 0 && field->proto_v == 3 && field->o_type == occurrence_defaulty) {
             return RET_OK;
         }
         do_pack_uint32(env, (uint32_t)payload_len, enc);
-        memmove(enc->p, enc->tmp, payload_len);
+        memmove(enc->p, enc->mem + length_at + MAX_UINT64_ENCODED_SIZE, payload_len);
         enc->p += payload_len;
     } else if (enif_is_binary(env, term) && enif_inspect_binary(env, term, &bin)) {
 
@@ -563,12 +566,12 @@ pack_string(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
                 return RET_OK;
             }
 
-            enc_ensure(env, enc, 1);
+            enc_reserve(env, enc, 1);
             *(enc->p++) = 0;
             return RET_OK;
         }
 
-        enc_ensure(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
+        enc_reserve(env, enc, MAX_UINT64_ENCODED_SIZE + bin.size);
         do_pack_uint32(env, (uint32_t)bin.size, enc);
         memcpy(enc->p, bin.data, bin.size);
         enc->p += bin.size;
@@ -596,8 +599,9 @@ pack_enum(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         raise_exception(env, term);
     }
 
-    sub_field = node->fields;
-    if (sub_field->value == val && sub_field->proto_v == 3 && field->o_type == occurrence_defaulty) {
+    /* proto3 omits the type default (0). Do not use node->fields[0] here: the
+     * array is sorted by name, so its value is not necessarily zero. */
+    if (val == 0 && field->proto_v == 3 && field->o_type == occurrence_defaulty) {
         return RET_OK;
     }
 
@@ -609,7 +613,7 @@ pack_enum(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         *(enc->p)++ = (val >> 14) | 0x80;
         *(enc->p)++ = (val >> 21) | 0x80;
         *(enc->p)++ = (val >> 28) | 0x80;
-        *((int32_t *)(enc->p)) = 0xffffffff;
+        memset(enc->p, 0xff, sizeof(int32_t));
         enc->p += sizeof(int32_t);
         *(enc->p)++ = 0x01;
     } else {
@@ -720,12 +724,12 @@ pack_element_packed(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t
 static ERL_NIF_TERM
 pack_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
 {
-    char *sentinel;
+    size_t sentinel_at;
     ERL_NIF_TERM ret;
 
     enc->sentinel = enc->p;
     pack_tag(env, field->fnum, enc);
-    sentinel = enc->p;
+    sentinel_at = (size_t)(enc->p - enc->mem);
 
     switch (field->type) {
     case field_sint32:
@@ -804,7 +808,7 @@ pack_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_enc_t *enc, ep_field_t *field)
         raise_exception(env, term);
     }
 
-    if (sentinel == enc->p) {
+    if ((size_t)(enc->p - enc->mem) == sentinel_at) {
         enc->p = enc->sentinel;
     }
 
@@ -838,6 +842,7 @@ pack_unknown_item(ErlNifEnv *env, ERL_NIF_TERM item, ep_enc_t *enc)
         if (!enif_get_int64(env, array[2], &val)) {
             raise_exception(env, item);
         }
+        enc_reserve(env, enc, MAX_UINT64_ENCODED_SIZE);
         do_pack_uint64(env, (uint64_t)val, enc);
     } else if (array[0] == state->atom_fixed64) {
         ErlNifUInt64 val;
@@ -846,7 +851,7 @@ pack_unknown_item(ErlNifEnv *env, ERL_NIF_TERM item, ep_enc_t *enc)
         if (!enif_get_uint64(env, array[2], &val)) {
             raise_exception(env, item);
         }
-        enc_ensure(env, enc, 8);
+        enc_reserve(env, enc, 8);
         memcpy(enc->p, &val, 8);
         enc->p += 8;
     } else if (array[0] == state->atom_fixed32) {
@@ -856,7 +861,7 @@ pack_unknown_item(ErlNifEnv *env, ERL_NIF_TERM item, ep_enc_t *enc)
         if (!enif_get_uint(env, array[2], &val)) {
             raise_exception(env, item);
         }
-        enc_ensure(env, enc, 4);
+        enc_reserve(env, enc, 4);
         memcpy(enc->p, &val, 4);
         enc->p += 4;
     } else if (array[0] == state->atom_length_delimited) {
@@ -867,7 +872,7 @@ pack_unknown_item(ErlNifEnv *env, ERL_NIF_TERM item, ep_enc_t *enc)
             raise_exception(env, item);
         }
         do_pack_uint32(env, (uint32_t)bin.size, enc);
-        enc_ensure(env, enc, bin.size);
+        enc_reserve(env, enc, bin.size);
         if (bin.size > 0) {
             memcpy(enc->p, bin.data, bin.size);
         }
@@ -1015,9 +1020,7 @@ encode(ErlNifEnv *env, ERL_NIF_TERM term, ep_tdata_t *tdata)
                 field = ((ep_field_t *)(spot->node->fields)) + i;
 
                 if (field->type == field_unknown) {
-                    if (enif_is_list(env, term) && !enif_is_empty_list(env, term)) {
-                        check_ret(ret, pack_unknown_fields(env, term, enc));
-                    }
+                    check_ret(ret, pack_unknown_fields(env, term, enc));
                     continue;
                 }
 
@@ -1257,7 +1260,7 @@ ep_unit_pack_int32(int32_t val, unsigned char *buf, size_t cap)
         *(enc.p)++ = (val >> 14) | 0x80;
         *(enc.p)++ = (val >> 21) | 0x80;
         *(enc.p)++ = (val >> 28) | 0x80;
-        *((int32_t *)(enc.p)) = 0xffffffff;
+        memset(enc.p, 0xff, sizeof(int32_t));
         enc.p += sizeof(int32_t);
         *(enc.p)++ = 0x01;
     } else {
@@ -1298,7 +1301,7 @@ ep_unit_pack_fixed32(int32_t val, unsigned char *buf, size_t cap)
     ep_enc_t enc;
 
     ep_unit_pack_init(&enc, buf, cap);
-    *((int32_t *)(enc.p)) = val;
+    memcpy(enc.p, &val, sizeof(int32_t));
     enc.p += sizeof(int32_t);
     return (size_t)(enc.p - (char *)buf);
 }
@@ -1309,7 +1312,7 @@ ep_unit_pack_fixed64(int64_t val, unsigned char *buf, size_t cap)
     ep_enc_t enc;
 
     ep_unit_pack_init(&enc, buf, cap);
-    *((int64_t *)(enc.p)) = val;
+    memcpy(enc.p, &val, sizeof(val));
     enc.p += sizeof(int64_t);
     return (size_t)(enc.p - (char *)buf);
 }
@@ -1330,7 +1333,7 @@ ep_unit_pack_double(double val, unsigned char *buf, size_t cap)
     ep_enc_t enc;
 
     ep_unit_pack_init(&enc, buf, cap);
-    *((double *)(enc.p)) = val;
+    memcpy(enc.p, &val, sizeof(double));
     enc.p += sizeof(double);
     return (size_t)(enc.p - (char *)buf);
 }

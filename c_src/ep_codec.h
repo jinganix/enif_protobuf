@@ -5,6 +5,10 @@
 
 #define MAX_UINT64_ENCODED_SIZE 10
 
+/* Group nesting limit, same idea as the protobuf reference implementations.
+ * Group skipping is recursive, so unbounded nesting would overflow the C stack. */
+#define EP_MAX_GROUP_DEPTH 100
+
 enum {
     spot_default,
     spot_tuple,

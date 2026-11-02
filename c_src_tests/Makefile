@@ -46,12 +46,16 @@ obj_basename = $(subst /,_,$(1:$(CURDIR)/%=%))
 LIB_OBJS := $(foreach s,$(LIB_SRCS),$(BUILD)/c_src_$(notdir $(s:.c=.o)))
 TEST_OBJS := $(foreach s,$(TEST_SRCS),$(BUILD)/tests_$(call obj_basename,$(s:.c=.o)))
 OBJS := $(LIB_OBJS) $(TEST_OBJS)
+HEADERS := $(wildcard $(C_SRC)/*.h $(CURDIR)/*.h $(CURDIR)/stub/*.h)
 
 test_obj = $(BUILD)/tests_$(subst /,_,$(1:$(CURDIR)/%=%))
 
 .PHONY: all test clean coverage coverage-check coverage-clean
 
 all: $(TARGET)
+
+# Rebuild objects when headers change; struct layouts live there.
+$(OBJS): $(HEADERS)
 
 $(TARGET): $(OBJS) | $(BUILD)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm

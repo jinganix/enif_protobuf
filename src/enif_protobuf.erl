@@ -26,7 +26,9 @@ init() ->
         Path ->
             Path
     end,
-    Threads = erlang:system_info(schedulers),
+    %% One state slot per thread that can run a NIF: dirty CPU schedulers
+    %% included, so two threads never share a slot.
+    Threads = erlang:system_info(schedulers) + erlang:system_info(dirty_cpu_schedulers),
     ok = erlang:load_nif(filename:join(PrivDir, "enif_protobuf"), Threads).
 
 not_loaded(Line) ->

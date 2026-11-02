@@ -129,7 +129,9 @@ ep_test_load_single_field(ErlNifEnv *env, const char *msg_name, const char *fiel
     ERL_NIF_TERM field, cache_list[8], ret;
     size_t n = 1;
 
-    field = mk_field_opts(env, st, field_name, fnum, 1, type, occ, enif_make_list(env, 0));
+    /* rnum is 1-based and includes the message name, so the first payload
+     * field is rnum 2 (tuple index 1). */
+    field = mk_field_opts(env, st, field_name, fnum, 2, type, occ, enif_make_list(env, 0));
     cache_list[0] = mk_msg_def(env, st, msg_name, list_from_terms(env, &field, 1));
     if (extra_defs != NULL) {
         for (size_t i = 0; i < extra_n && n < 8; i++) {

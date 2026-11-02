@@ -835,10 +835,12 @@ ep_test_prepare_decode_stack(ErlNifEnv *env)
     ep_cache_t *cache = state->cache;
     ep_stack_t *stack;
     ep_spot_t *spot;
-    uint32_t i, max_fields = 0;
+    uint32_t i, max_fields = 2;
 
+    /* Must match ep_load_cache(): the internal map node (size 2) is not in the
+     * cache, so the floor is 2 or map spots overflow their t_arr. */
     for (i = 0; i < cache->used; i++) {
-        if (cache->names[i].node->n_type == node_msg || cache->names[i].node->n_type == node_map) {
+        if (cache->names[i].node->n_type == node_msg || cache->names[i].node->n_type == node_map || cache->names[i].node->n_type == node_group) {
             if (cache->names[i].node->size > max_fields) {
                 max_fields = cache->names[i].node->size;
             }

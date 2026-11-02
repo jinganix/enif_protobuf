@@ -157,6 +157,11 @@ free_node(ep_node_t *node)
         node->v_fields = NULL;
     }
 
+    if (node->fnum_map != NULL) {
+        _free(node->fnum_map);
+        node->fnum_map = NULL;
+    }
+
     _free(node);
 }
 
@@ -385,8 +390,7 @@ parse_map_type(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
         raise_exception(env, array[2]);
     }
 
-    parse_msg_fields(env, enif_make_list2(env, enif_make_tuple7(env, state->atom_field, make_atom(env, "k"), enif_make_uint(env, 1), enif_make_uint(env, 2), array[1], state->atom_optional, enif_make_list(env, 0)), enif_make_tuple7(env, state->atom_field, make_atom(env, "v"), enif_make_uint(env, 2), enif_make_uint(env, 3), array[2], state->atom_optional, enif_make_list(env, 0))), node);
-    return RET_OK;
+    return parse_msg_fields(env, enif_make_list2(env, enif_make_tuple7(env, state->atom_field, make_atom(env, "k"), enif_make_uint(env, 1), enif_make_uint(env, 2), array[1], state->atom_optional, enif_make_list(env, 0)), enif_make_tuple7(env, state->atom_field, make_atom(env, "v"), enif_make_uint(env, 2), enif_make_uint(env, 3), array[2], state->atom_optional, enif_make_list(env, 0))), node);
 }
 
 ERL_NIF_TERM
@@ -434,9 +438,14 @@ parse_opts(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 
     while (enif_get_list_cell(env, term, &head, &tail)) {
         if (head == make_atom(env, A_PACKED)) {
-            field->packed = TRUE;
+            /* gpb only warns and ignores packed on non-packable types, and its
+             * generated defs keep the option on them (e.g. proto3 repeated
+             * string), so accept it and fall back to the unpacked encoding. */
+            if (ep_type_is_packable(field->type)) {
+                field->packed = TRUE;
+            }
         } else if (enif_get_tuple(env, head, &arity, to_const(array)) && arity == 2 && array[0] == make_atom(env, A_DEFAULT)) {
-            field->defaut_value = array[1];
+            /* default values are not applied on decode, matching gpb */
         } else if (head == make_atom(env, A_DEPRECATED)) {
             /* skip */
         } else {
@@ -514,6 +523,9 @@ fill_oneof_field(ErlNifEnv *env, ERL_NIF_TERM term, ep_field_t *field)
 
     field->type = field_oneof;
     field->sub_node = make_node(len, node_oneof);
+    if (field->sub_node == NULL) {
+        raise_exception(env, term);
+    }
 
     field->sub_node->n_type = node_oneof;
     field->sub_node->size = len;
@@ -575,7 +587,7 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
     ep_field_t *field, *f;
     int32_t arity;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
-    uint32_t i, j;
+    uint32_t i, j, max_fnum;
     ep_fnum_field_t *ff;
     ERL_NIF_TERM head, tail, ret;
     ERL_NIF_TERM *array;
@@ -616,6 +628,9 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
 
     if (node->v_size > 0) {
         node->v_fields = _calloc(sizeof(ep_fnum_field_t), node->v_size);
+        if (node->v_fields == NULL) {
+            raise_exception(env, term);
+        }
         ff = node->v_fields;
         field = node->fields;
         for (i = 0; i < node->size; i++) {
@@ -636,12 +651,26 @@ parse_msg_fields(ErlNifEnv *env, ERL_NIF_TERM term, ep_node_t *node)
             field++;
         }
 
-        ff = node->v_fields;
-        for (i = 0; i < node->v_size; i++) {
-            ff++;
-        }
-
         qsort(node->v_fields, node->v_size, sizeof(ep_fnum_field_t), sort_compare_fnum_field);
+
+        max_fnum = 0;
+        for (i = 0; i < node->v_size; i++) {
+            ff = (ep_fnum_field_t *)node->v_fields + i;
+            if (ff->fnum > max_fnum) {
+                max_fnum = ff->fnum;
+            }
+        }
+        if (max_fnum < EP_FNUM_MAP_LIMIT) {
+            node->fnum_map = _calloc(sizeof(ep_field_t *), (size_t)max_fnum + 1);
+            if (node->fnum_map == NULL) {
+                raise_exception(env, term);
+            }
+            node->fnum_map_size = max_fnum + 1;
+            for (i = 0; i < node->v_size; i++) {
+                ff = (ep_fnum_field_t *)node->v_fields + i;
+                node->fnum_map[ff->fnum] = ff->field;
+            }
+        }
     }
 
     return RET_OK;
@@ -777,13 +806,15 @@ stack_ensure(ErlNifEnv *env, ep_stack_t *stack, ep_spot_t **spot)
     size_t size;
 
     if ((*spot) >= stack->end) {
+        size_t idx = (size_t)(*spot - stack->spots);
+
         size = stack->size * 2;
         spots = _realloc(stack->spots, sizeof(ep_spot_t) * size);
         if (spots == NULL) {
             raise_exception(env, enif_make_string(env, "realloc failed", ERL_NIF_LATIN1));
         }
 
-        *spot = spots + (*spot - stack->spots);
+        *spot = spots + idx;
 
         memset(spots + stack->size, 0x00, sizeof(ep_spot_t) * (size - stack->size));
         stack->spots = spots;
@@ -828,13 +859,14 @@ spot_path_contains_node(ep_spot_t *spot, ep_spot_t *start, ep_node_t *node)
     return FALSE;
 }
 
-void
+ERL_NIF_TERM
 stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
 {
     size_t i, j, stack_size;
     ep_spot_t *spot;
     ep_field_t *field;
     ep_stack_t *stack;
+    ERL_NIF_TERM ret;
     ep_state_t *state = (ep_state_t *)enif_priv_data(env);
 
     stack = &(state->tdata[0].stack);
@@ -869,7 +901,7 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                                 continue;
                             }
                             spot++;
-                            stack_ensure(env, stack, &spot);
+                            check_ret(ret, stack_ensure(env, stack, &spot));
 
                             spot->type = spot_list;
                             spot->pos = 0;
@@ -881,7 +913,7 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                             continue;
                         }
                         spot++;
-                        stack_ensure(env, stack, &spot);
+                        check_ret(ret, stack_ensure(env, stack, &spot));
 
                         spot->type = spot_tuple;
                         spot->pos = 0;
@@ -896,7 +928,7 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
                 }
                 spot->pos = 1;
                 spot++;
-                stack_ensure(env, stack, &spot);
+                check_ret(ret, stack_ensure(env, stack, &spot));
 
                 spot->node = (spot - 1)->node;
                 spot->type = spot_tuple;
@@ -908,8 +940,10 @@ stack_ensure_all(ErlNifEnv *env, ep_cache_t *cache)
     stack_size = stack->size;
     for (i = 1; i < state->lock_n; i++) {
         stack = &(state->tdata[i].stack);
-        stack_ensure_size(env, stack, stack_size);
+        check_ret(ret, stack_ensure_size(env, stack, stack_size));
     }
+
+    return RET_OK;
 }
 
 int
