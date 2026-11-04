@@ -4,6 +4,10 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Erlang/OTP](https://img.shields.io/badge/Erlang%2FOTP-28%2B-blue.svg)](https://www.erlang.org/)
 
+> **New projects should use [pbwire](https://github.com/jinganix/pbwire)** — a lightweight,
+> dependency-free Protobuf runtime in C with dynamic schema support (no code generation
+> required). `enif_protobuf` remains available for existing gpb users but is in maintenance mode.
+
 # enif_protobuf — fast Google Protobuf encoder/decoder for Erlang and Elixir (NIF)
 
 **enif_protobuf** is a Google Protobuf encoder and decoder for **Erlang/OTP**, implemented as a NIF
